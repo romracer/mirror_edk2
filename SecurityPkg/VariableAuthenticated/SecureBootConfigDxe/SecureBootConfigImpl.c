@@ -1,7 +1,8 @@
 /** @file
   HII Config Access protocol implementation of SecureBoot configuration module.
 
-Copyright (c) 2011 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2011 - 2018, Intel Corporation. All rights reserved.<BR>
+(C) Copyright 2018 Hewlett Packard Enterprise Development LP<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -1815,7 +1816,7 @@ LoadPeImage (
   Calculate hash of Pe/Coff image based on the authenticode image hashing in
   PE/COFF Specification 8.0 Appendix A
 
-  Notes: PE/COFF image has been checked by BasePeCoffLib PeCoffLoaderGetImageInfo() in 
+  Notes: PE/COFF image has been checked by BasePeCoffLib PeCoffLoaderGetImageInfo() in
   the function LoadPeImage ().
 
   @param[in]    HashAlg   Hash algorithm type.
@@ -1830,7 +1831,6 @@ HashPeImage (
   )
 {
   BOOLEAN                   Status;
-  UINT16                    Magic;
   EFI_IMAGE_SECTION_HEADER  *Section;
   VOID                      *HashCtx;
   UINTN                     CtxSize;
@@ -1873,27 +1873,13 @@ HashPeImage (
   // Measuring PE/COFF Image Header;
   // But CheckSum field and SECURITY data directory (certificate) are excluded
   //
-  if (mNtHeader.Pe32->FileHeader.Machine == IMAGE_FILE_MACHINE_IA64 && mNtHeader.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
-    //
-    // NOTE: Some versions of Linux ELILO for Itanium have an incorrect magic value
-    //       in the PE/COFF Header. If the MachineType is Itanium(IA64) and the
-    //       Magic value in the OptionalHeader is EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC
-    //       then override the magic value to EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC
-    //
-    Magic = EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC;
-  } else {
-    //
-    // Get the magic value from the PE/COFF Optional Header
-    //
-    Magic = mNtHeader.Pe32->OptionalHeader.Magic;
-  }
 
   //
   // 3.  Calculate the distance from the base of the image header to the image checksum address.
   // 4.  Hash the image header from its base to beginning of the image checksum.
   //
   HashBase = mImageBase;
-  if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+  if (mNtHeader.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
     //
     // Use PE32 offset.
     //
@@ -1914,7 +1900,7 @@ HashPeImage (
   // 6.  Get the address of the beginning of the Cert Directory.
   // 7.  Hash everything from the end of the checksum to the start of the Cert Directory.
   //
-  if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+  if (mNtHeader.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
     //
     // Use PE32 offset.
     //
@@ -1936,7 +1922,7 @@ HashPeImage (
   // 8.  Skip over the Cert Directory. (It is sizeof(IMAGE_DATA_DIRECTORY) bytes.)
   // 9.  Hash everything from the end of the Cert Directory to the end of image header.
   //
-  if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+  if (mNtHeader.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
     //
     // Use PE32 offset
     //
@@ -1957,7 +1943,7 @@ HashPeImage (
   //
   // 10. Set the SUM_OF_BYTES_HASHED to the size of the header.
   //
-  if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+  if (mNtHeader.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
     //
     // Use PE32 offset.
     //
@@ -2031,7 +2017,7 @@ HashPeImage (
   //
   if (mImageSize > SumOfBytesHashed) {
     HashBase = mImageBase + SumOfBytesHashed;
-    if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+    if (mNtHeader.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
       //
       // Use PE32 offset.
       //
@@ -3326,12 +3312,12 @@ SecureBootExtractConfigFromVariable (
   }
 
   //
-  // Check SecureBootEnable & Pk status, fix the inconsistence. 
+  // Check SecureBootEnable & Pk status, fix the inconsistence.
   // If the SecureBootEnable Variable doesn't exist, hide the SecureBoot Enable/Disable
   // Checkbox.
   //
   ConfigData->AttemptSecureBoot = FALSE;
-  GetVariable2 (EFI_SECURE_BOOT_ENABLE_NAME, &gEfiSecureBootEnableDisableGuid, (VOID**)&SecureBootEnable, NULL);  
+  GetVariable2 (EFI_SECURE_BOOT_ENABLE_NAME, &gEfiSecureBootEnableDisableGuid, (VOID**)&SecureBootEnable, NULL);
 
   //
   // Fix Pk, SecureBootEnable inconsistence
@@ -4319,6 +4305,7 @@ SecureBootCallback (
   UINTN                           NameLength;
   UINT16                          *FilePostFix;
   SECUREBOOT_CONFIG_PRIVATE_DATA  *PrivateData;
+  BOOLEAN                         GetBrowserDataResult;
 
   Status           = EFI_SUCCESS;
   SecureBootEnable = NULL;
@@ -4343,7 +4330,7 @@ SecureBootCallback (
     return EFI_OUT_OF_RESOURCES;
   }
 
-  HiiGetBrowserData (&gSecureBootConfigFormSetGuid, mSecureBootStorageName, BufferSize, (UINT8 *) IfrNvData);
+  GetBrowserDataResult = HiiGetBrowserData (&gSecureBootConfigFormSetGuid, mSecureBootStorageName, BufferSize, (UINT8 *) IfrNvData);
 
   if (Action == EFI_BROWSER_ACTION_FORM_OPEN) {
     if (QuestionId == KEY_SECURE_BOOT_MODE) {
@@ -4383,7 +4370,7 @@ SecureBootCallback (
         Value->u8 = SECURE_BOOT_MODE_STANDARD;
         Status = EFI_SUCCESS;
       }
-    } 
+    }
     goto EXIT;
   }
 
@@ -4889,7 +4876,7 @@ SecureBootCallback (
 
 EXIT:
 
-  if (!EFI_ERROR (Status)) {
+  if (!EFI_ERROR (Status) && GetBrowserDataResult) {
     BufferSize = sizeof (SECUREBOOT_CONFIGURATION);
     HiiSetBrowserData (&gSecureBootConfigFormSetGuid, mSecureBootStorageName, BufferSize, (UINT8*) IfrNvData, NULL);
   }

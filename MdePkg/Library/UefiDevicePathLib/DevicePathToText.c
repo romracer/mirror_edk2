@@ -56,7 +56,7 @@ UefiDevicePathLibCatPrint (
   VA_START (Args, Fmt);
   UnicodeVSPrint (&Str->Str[Str->Count], Str->Capacity - Str->Count * sizeof (CHAR16), Fmt, Args);
   Str->Count += Count;
-  
+
   VA_END (Args);
   return Str->Str;
 }
@@ -195,7 +195,7 @@ DevPathToTextVendor (
         UefiDevicePathLibCatPrint (Str, L"VenVt100Plus()");
         return ;
       } else if (CompareGuid (&Vendor->Guid, &gEfiVTUTF8Guid)) {
-        UefiDevicePathLibCatPrint (Str, L"VenUft8()");
+        UefiDevicePathLibCatPrint (Str, L"VenUtf8()");
         return ;
       } else if (CompareGuid (&Vendor->Guid, &gEfiUartDevicePathGuid)) {
         FlowControlMap = (((UART_FLOW_CONTROL_DEVICE_PATH *) Vendor)->FlowControlMap);
@@ -433,9 +433,30 @@ DevPathToTextAcpiEx (
   UIDStr = HIDStr + AsciiStrLen (HIDStr) + 1;
   CIDStr = UIDStr + AsciiStrLen (UIDStr) + 1;
 
+  if (DisplayOnly) {
+    if ((EISA_ID_TO_NUM (AcpiEx->HID) == 0x0A03) ||
+        (EISA_ID_TO_NUM (AcpiEx->CID) == 0x0A03 && EISA_ID_TO_NUM (AcpiEx->HID) != 0x0A08)) {
+      if (AcpiEx->UID == 0) {
+        UefiDevicePathLibCatPrint (Str, L"PciRoot(%a)", UIDStr);
+      } else {
+        UefiDevicePathLibCatPrint (Str, L"PciRoot(0x%x)", AcpiEx->UID);
+      }
+      return;
+    }
+
+    if (EISA_ID_TO_NUM (AcpiEx->HID) == 0x0A08 || EISA_ID_TO_NUM (AcpiEx->CID) == 0x0A08) {
+      if (AcpiEx->UID == 0) {
+        UefiDevicePathLibCatPrint (Str, L"PcieRoot(%a)", UIDStr);
+      } else {
+        UefiDevicePathLibCatPrint (Str, L"PcieRoot(0x%x)", AcpiEx->UID);
+      }
+      return;
+    }
+  }
+
   //
   // Converts EISA identification to string.
-  // 
+  //
   UnicodeSPrint (
     HIDText,
     sizeof (HIDText),
@@ -455,7 +476,7 @@ DevPathToTextAcpiEx (
     (AcpiEx->CID >> 16) & 0xFFFF
     );
 
-  if ((*HIDStr == '\0') && (*CIDStr == '\0') && (AcpiEx->UID == 0)) {
+  if ((*HIDStr == '\0') && (*CIDStr == '\0') && (*UIDStr != '\0')) {
     //
     // use AcpiExp()
     //
@@ -477,16 +498,16 @@ DevPathToTextAcpiEx (
         UefiDevicePathLibCatPrint (Str, L"AcpiEx(%s,", HIDText);
       }
 
-      if (AcpiEx->UID == 0) {
-        UefiDevicePathLibCatPrint (Str, L"%a,", UIDStr);
+      if (AcpiEx->CID == 0) {
+        UefiDevicePathLibCatPrint (Str, L"%a,", CIDStr);
       } else {
-        UefiDevicePathLibCatPrint (Str, L"0x%x,", AcpiEx->UID);
+        UefiDevicePathLibCatPrint (Str, L"%s,", CIDText);
       }
 
-      if (AcpiEx->CID == 0) {
-        UefiDevicePathLibCatPrint (Str, L"%a)", CIDStr);
+      if (AcpiEx->UID == 0) {
+        UefiDevicePathLibCatPrint (Str, L"%a)", UIDStr);
       } else {
-        UefiDevicePathLibCatPrint (Str, L"%s)", CIDText);
+        UefiDevicePathLibCatPrint (Str, L"0x%x)", AcpiEx->UID);
       }
     } else {
       UefiDevicePathLibCatPrint (
@@ -1364,7 +1385,7 @@ DevPathToTextIPv6 (
     UefiDevicePathLibCatPrint (Str, L")");
     return ;
   }
-  
+
   UefiDevicePathLibCatPrint (Str, L",");
   CatNetworkProtocol (Str, IPDevPath->Protocol);
 
@@ -1727,7 +1748,7 @@ DevPathToTextDns (
   DnsServerIpCount = (UINT32) (DevicePathNodeLength(DnsDevPath) - sizeof (EFI_DEVICE_PATH_PROTOCOL) - sizeof (DnsDevPath->IsIPv6)) / sizeof (EFI_IP_ADDRESS);
 
   UefiDevicePathLibCatPrint (Str, L"Dns(");
-  
+
   for (DnsServerIpIndex = 0; DnsServerIpIndex < DnsServerIpCount; DnsServerIpIndex++) {
     if (DnsDevPath->IsIPv6 == 0x00) {
       CatIPv4Address (Str, &(DnsDevPath->DnsServerIp[DnsServerIpIndex].v4));
@@ -2409,14 +2430,14 @@ UefiDevicePathLibConvertDevicePathToText (
         UefiDevicePathLibCatPrint (&Str, L"/");
       }
     }
-    
+
     AlignedNode = AllocateCopyPool (DevicePathNodeLength (Node), Node);
     //
     // Print this node of the device path
     //
     ToText (&Str, AlignedNode, DisplayOnly, AllowShortcuts);
     FreePool (AlignedNode);
-    
+
     //
     // Next device path node
     //

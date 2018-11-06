@@ -1,6 +1,6 @@
 /** @file
 
-  Copyright (c) 2014 - 2016, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2014 - 2018, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -516,17 +516,19 @@ FspApiReturnStatusReset (
   )
 {
   volatile BOOLEAN  LoopUntilReset;
-  
+
   LoopUntilReset = TRUE;
   DEBUG ((DEBUG_INFO, "FSP returning control to Bootloader with reset required return status %x\n",FspResetType));
-  ///
-  /// Below code is not an infinite loop.The control will go back to API calling function in BootLoader each time BootLoader
-  /// calls the FSP API without honoring the reset request by FSP
-  ///
-  do {
-    SetFspApiReturnStatus ((EFI_STATUS)FspResetType);
-    Pei2LoaderSwitchStack ();
-    DEBUG ((DEBUG_ERROR, "!!!ERROR: FSP has requested BootLoader for reset. But BootLoader has not honored the reset\n"));
-    DEBUG ((DEBUG_ERROR, "!!!ERROR: Please add support in BootLoader to honor the reset request from FSP\n"));
-  } while (LoopUntilReset);
+  if (GetFspGlobalDataPointer ()->FspMode == FSP_IN_API_MODE) {
+    ///
+    /// Below code is not an infinite loop.The control will go back to API calling function in BootLoader each time BootLoader
+    /// calls the FSP API without honoring the reset request by FSP
+    ///
+    do {
+      SetFspApiReturnStatus ((EFI_STATUS)FspResetType);
+      Pei2LoaderSwitchStack ();
+      DEBUG ((DEBUG_ERROR, "!!!ERROR: FSP has requested BootLoader for reset. But BootLoader has not honored the reset\n"));
+      DEBUG ((DEBUG_ERROR, "!!!ERROR: Please add support in BootLoader to honor the reset request from FSP\n"));
+    } while (LoopUntilReset);
+  }
 }

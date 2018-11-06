@@ -20,7 +20,7 @@
   PLATFORM_VERSION               = 0.98
   DSC_SPECIFICATION              = 0x00010005
   OUTPUT_DIRECTORY               = Build/NetworkPkg
-  SUPPORTED_ARCHITECTURES        = IA32|IPF|X64|EBC|ARM|AARCH64
+  SUPPORTED_ARCHITECTURES        = IA32|X64|EBC|ARM|AARCH64
   BUILD_TARGETS                  = DEBUG|RELEASE|NOOPT
   SKUID_IDENTIFIER               = DEFAULT
 
@@ -57,7 +57,7 @@
   OpensslLib|CryptoPkg/Library/OpensslLib/OpensslLib.inf
   IntrinsicLib|CryptoPkg/Library/IntrinsicLib/IntrinsicLib.inf
   TlsLib|CryptoPkg/Library/TlsLib/TlsLib.inf
-  DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf  
+  DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
   FileHandleLib|MdePkg/Library/UefiFileHandleLib/UefiFileHandleLib.inf
   FileExplorerLib|MdeModulePkg/Library/FileExplorerLib/FileExplorerLib.inf
   SortLib|MdeModulePkg/Library/UefiSortLib/UefiSortLib.inf
@@ -120,7 +120,7 @@
   NetworkPkg/Application/IpsecConfig/IpSecConfig.inf
   NetworkPkg/Application/VConfig/VConfig.inf
 
-[Components.IA32, Components.X64, Components.IPF]
+[Components.IA32, Components.X64]
   NetworkPkg/IpSecDxe/IpSecDxe.inf
   NetworkPkg/IScsiDxe/IScsiDxe.inf
   NetworkPkg/UefiPxeBcDxe/UefiPxeBcDxe.inf

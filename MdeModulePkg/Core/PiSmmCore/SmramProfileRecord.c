@@ -1,7 +1,7 @@
 /** @file
   Support routines for SMRAM profile.
 
-  Copyright (c) 2014 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2014 - 2018, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -99,10 +99,10 @@ DumpSmramInfo (
   @param[in, out] ProfileSize       On entry, points to the size in bytes of the ProfileBuffer.
                                     On return, points to the size of the data returned in ProfileBuffer.
   @param[out]     ProfileBuffer     Profile buffer.
-                      
+
   @return EFI_SUCCESS               Get the memory profile data successfully.
   @return EFI_UNSUPPORTED           Memory profile is unsupported.
-  @return EFI_BUFFER_TO_SMALL       The ProfileSize is too small for the resulting data. 
+  @return EFI_BUFFER_TO_SMALL       The ProfileSize is too small for the resulting data.
                                     ProfileSize is updated with the size required.
 
 **/
@@ -256,35 +256,6 @@ GetSmramProfileContext (
 }
 
 /**
-  Retrieves the magic value from the PE/COFF header.
-
-  @param Hdr    The buffer in which to return the PE32, PE32+, or TE header.
-
-  @return EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC - Image is PE32
-  @return EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC - Image is PE32+
-
-**/
-UINT16
-InternalPeCoffGetPeHeaderMagicValue (
-  IN  EFI_IMAGE_OPTIONAL_HEADER_PTR_UNION  Hdr
-  )
-{
-  //
-  // NOTE: Some versions of Linux ELILO for Itanium have an incorrect magic value
-  //       in the PE/COFF Header.  If the MachineType is Itanium(IA64) and the
-  //       Magic value in the OptionalHeader is  EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC
-  //       then override the returned value to EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC
-  //
-  if (Hdr.Pe32->FileHeader.Machine == IMAGE_FILE_MACHINE_IA64 && Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
-    return EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC;
-  }
-  //
-  // Return the magic value from the PC/COFF Optional Header
-  //
-  return Hdr.Pe32->OptionalHeader.Magic;
-}
-
-/**
   Retrieves and returns the Subsystem of a PE/COFF image that has been loaded into system memory.
   If Pe32Data is NULL, then ASSERT().
 
@@ -320,7 +291,7 @@ InternalPeCoffGetSubsystem (
   if (Hdr.Te->Signature == EFI_TE_IMAGE_HEADER_SIGNATURE) {
     return Hdr.Te->Subsystem;
   } else if (Hdr.Pe32->Signature == EFI_IMAGE_NT_SIGNATURE)  {
-    Magic = InternalPeCoffGetPeHeaderMagicValue (Hdr);
+    Magic = Hdr.Pe32->OptionalHeader.Magic;
     if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
       return Hdr.Pe32->OptionalHeader.Subsystem;
     } else if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
@@ -594,7 +565,7 @@ NeedRecordThisDriver (
     //
     return TRUE;
   }
-  
+
   //
   // Record FilePath without end node.
   //
@@ -1913,10 +1884,10 @@ Done:
   @param[in, out] ProfileSize       On entry, points to the size in bytes of the ProfileBuffer.
                                     On return, points to the size of the data returned in ProfileBuffer.
   @param[out]     ProfileBuffer     Profile buffer.
-                      
+
   @return EFI_SUCCESS               Get the memory profile data successfully.
   @return EFI_UNSUPPORTED           Memory profile is unsupported.
-  @return EFI_BUFFER_TO_SMALL       The ProfileSize is too small for the resulting data. 
+  @return EFI_BUFFER_TO_SMALL       The ProfileSize is too small for the resulting data.
                                     ProfileSize is updated with the size required.
 
 **/
@@ -1986,7 +1957,7 @@ SmramProfileProtocolRegisterImage (
   EFI_SMM_DRIVER_ENTRY              DriverEntry;
   VOID                              *EntryPointInImage;
   EFI_GUID                          *Name;
-  
+
   ZeroMem (&DriverEntry, sizeof (DriverEntry));
   Name = GetFileNameFromFilePath (FilePath);
   if (Name != NULL) {

@@ -6,10 +6,10 @@
 #  are licensed and made available under the terms and conditions of the BSD License
 #  which accompanies this distribution.  The full text of the license may be found at
 #  http://opensource.org/licenses/bsd-license.php
-#  
+#
 #  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
 #  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
-#  
+#
 ##
 
 ################################################################################
@@ -23,7 +23,7 @@
   PLATFORM_VERSION               = 0.98
   DSC_SPECIFICATION              = 0x00010005
   OUTPUT_DIRECTORY               = Build/CryptoPkg
-  SUPPORTED_ARCHITECTURES        = IA32|X64|IPF|ARM|AARCH64
+  SUPPORTED_ARCHITECTURES        = IA32|X64|ARM|AARCH64
   BUILD_TARGETS                  = DEBUG|RELEASE|NOOPT
   SKUID_IDENTIFIER               = DEFAULT
 
@@ -38,7 +38,7 @@
   MemoryAllocationLib|MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   DebugLib|MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
-  DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf  
+  DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
   PrintLib|MdePkg/Library/BasePrintLib/BasePrintLib.inf
   UefiLib|MdePkg/Library/UefiLib/UefiLib.inf
   DevicePathLib|MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf
@@ -77,9 +77,6 @@
 
 [LibraryClasses.common.DXE_SMM_DRIVER]
   BaseCryptLib|CryptoPkg/Library/BaseCryptLib/SmmCryptLib.inf
-
-[LibraryClasses.common.DXE_SAL_DRIVER]
-  BaseCryptLib|CryptoPkg/Library/BaseCryptLibRuntimeCryptProtocol/BaseCryptLibRuntimeCryptProtocol.inf
 
 [LibraryClasses.common.UEFI_DRIVER]
   BaseCryptLib|CryptoPkg/Library/BaseCryptLib/BaseCryptLib.inf
@@ -125,13 +122,8 @@
   CryptoPkg/Library/BaseCryptLib/RuntimeCryptLib.inf
   CryptoPkg/Library/TlsLib/TlsLib.inf
 
-  CryptoPkg/CryptRuntimeDxe/CryptRuntimeDxe.inf
-
 [Components.IA32, Components.X64]
   CryptoPkg/Library/BaseCryptLib/SmmCryptLib.inf
-
-[Components.IPF]
-  CryptoPkg/Library/BaseCryptLibRuntimeCryptProtocol/BaseCryptLibRuntimeCryptProtocol.inf
 
 [BuildOptions]
   *_*_*_CC_FLAGS = -D DISABLE_NEW_DEPRECATED_INTERFACES

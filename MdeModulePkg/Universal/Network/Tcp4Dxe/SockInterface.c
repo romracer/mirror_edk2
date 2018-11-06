@@ -1,7 +1,7 @@
 /** @file
   Interface function of the Socket.
 
-Copyright (c) 2005 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2005 - 2018, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -22,7 +22,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
   @param  List                 Pointer to the token list to be searched.
   @param  Event                The event to be checked.
 
-  @retval  TRUE                The specific Event exists in the List. 
+  @retval  TRUE                The specific Event exists in the List.
   @retval  FALSE               The specific Event is not in the List.
 
 **/
@@ -58,7 +58,7 @@ SockTokenExistedInList (
   @param  Sock                 Pointer to the instance's socket.
   @param  Event                The event to be checked.
 
-  @retval  TRUE                The Event exists in related socket's lists. 
+  @retval  TRUE                The Event exists in related socket's lists.
   @retval  FALSE               The Event is not in related socket's lists.
 
 **/
@@ -250,7 +250,7 @@ SockDestroyChild (
   data ProtoData.
 
   @param  SockInitData         Inital data to setting the socket.
-  
+
   @return Pointer to the newly created socket. If NULL, error condition occured.
 
 **/
@@ -938,48 +938,7 @@ SockGetMode (
 }
 
 
-/**
-  Configure the low level protocol to join a multicast group for
-  this socket's connection.
 
-  @param  Sock                 Pointer to the socket of the connection to join the
-                               specific multicast group.
-  @param  GroupInfo            Pointer to the multicast group info.
-
-  @retval EFI_SUCCESS          The configuration is done successfully.
-  @retval EFI_ACCESS_DENIED    Failed to get the lock to access the socket.
-  @retval EFI_NOT_STARTED      The socket is not configured.
-
-**/
-EFI_STATUS
-SockGroup (
-  IN SOCKET *Sock,
-  IN VOID   *GroupInfo
-  )
-{
-  EFI_STATUS  Status;
-
-  Status = EfiAcquireLockOrFail (&(Sock->Lock));
-
-  if (EFI_ERROR (Status)) {
-
-    DEBUG ((EFI_D_ERROR, "SockGroup: Get the access for socket"
-      " failed with %r", Status));
-
-    return EFI_ACCESS_DENIED;
-  }
-
-  if (SOCK_IS_UNCONFIGURED (Sock)) {
-    Status = EFI_NOT_STARTED;
-    goto Exit;
-  }
-
-  Status = Sock->ProtoHandler (Sock, SOCK_GROUP, GroupInfo);
-
-Exit:
-  EfiReleaseLock (&(Sock->Lock));
-  return Status;
-}
 
 
 /**

@@ -46,6 +46,7 @@
   ReportStatusCodeLib
   MpInitLib
   TimerLib
+  PeCoffGetEntryPointLib
 
 [Sources]
   CpuDxe.c
@@ -66,6 +67,7 @@
 [Protocols]
   gEfiCpuArchProtocolGuid                       ## PRODUCES
   gEfiMpServiceProtocolGuid                     ## PRODUCES
+  gEfiSmmBase2ProtocolGuid                      ## SOMETIMES_CONSUMES
 
 [Guids]
   gIdleLoopEventGuid                            ## CONSUMES           ## Event
@@ -78,6 +80,8 @@
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdPteMemoryEncryptionAddressOrMask    ## CONSUMES
   gEfiMdeModulePkgTokenSpaceGuid.PcdCpuStackGuard                       ## CONSUMES
+  gEfiMdeModulePkgTokenSpaceGuid.PcdHeapGuardPropertyMask               ## CONSUMES
+  gEfiMdeModulePkgTokenSpaceGuid.PcdNullPointerDetectionPropertyMask    ## CONSUMES
   gUefiCpuPkgTokenSpaceGuid.PcdCpuStackSwitchExceptionList              ## CONSUMES
   gUefiCpuPkgTokenSpaceGuid.PcdCpuKnownGoodStackSize                    ## CONSUMES
 

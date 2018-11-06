@@ -1,12 +1,17 @@
 ## @file
 #  Access PXE-compatible devices for network access and network booting.
-#  
+#
 #  This driver provides PXE Base Code Protocol which is used to accessing
-#  PXE-compatible device for network access or booting. It could work together
-#  with an IPv4 stack, an IPv6 stack or both.
+#  PXE-compatible device for network access or booting. This driver supports
+#  both IPv4 and IPv6 network stack.
 #
+#  Notes:
+#  1) This driver can't co-work with the UefiPxeBcDxe driver in MdeModulePkg.
+#  2) This driver includes more bug fixes and supports more features (e.g. IPv6,
+#     MTFTP windowsize) than the UefiPxeBcDxe driver in MdeModulePkg. So, we
+#     recommend using this driver even though both of them can be used.
 #
-#  Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 #
 #  This program and the accompanying materials
 #  are licensed and made available under the terms and conditions of the BSD License
@@ -31,7 +36,7 @@
 #
 # The following information is for reference only and not required by the build tools.
 #
-#  VALID_ARCHITECTURES           = IA32 X64 IPF
+#  VALID_ARCHITECTURES           = IA32 X64
 #
 
 [Sources]
@@ -55,6 +60,7 @@
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
+  NetworkPkg/NetworkPkg.dec
 
 
 [LibraryClasses]
@@ -73,7 +79,7 @@
 [Protocols]
   ## TO_START
   ## SOMETIMES_CONSUMES
-  gEfiDevicePathProtocolGuid                           
+  gEfiDevicePathProtocolGuid
   gEfiNetworkInterfaceIdentifierProtocolGuid_31        ## SOMETIMES_CONSUMES
   gEfiArpServiceBindingProtocolGuid                    ## TO_START
   gEfiArpProtocolGuid                                  ## TO_START
@@ -107,5 +113,7 @@
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdTftpBlockSize      ## SOMETIMES_CONSUMES
+  gEfiNetworkPkgTokenSpaceGuid.PcdPxeTftpWindowSize    ## SOMETIMES_CONSUMES
+
 [UserExtensions.TianoCore."ExtraFiles"]
   UefiPxeBcDxeExtra.uni

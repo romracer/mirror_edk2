@@ -1,7 +1,7 @@
 /** @file
   Provides interface to shell functionality for shell commands and applications.
 
-  Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -89,7 +89,6 @@ ShellSetFileInfo (
 
   @param[in, out]  FilePath      On input, the device path to the file.  On output,
                                  the remaining device path.
-  @param[out]   DeviceHandle     Pointer to the system device handle.
   @param[out]   FileHandle       Pointer to the file handle.
   @param[in]    OpenMode         The mode to open the file with.
   @param[in]    Attributes       The file's file attributes.
@@ -115,7 +114,6 @@ EFI_STATUS
 EFIAPI
 ShellOpenFileByDevicePath(
   IN OUT EFI_DEVICE_PATH_PROTOCOL     **FilePath,
-  OUT EFI_HANDLE                      *DeviceHandle,
   OUT SHELL_FILE_HANDLE               *FileHandle,
   IN UINT64                           OpenMode,
   IN UINT64                           Attributes
@@ -1356,9 +1354,9 @@ ShellFileHandleReadLine(
 
 /**
   Function to delete a file by name
-  
+
   @param[in]       FileName       Pointer to file name to delete.
-  
+
   @retval EFI_SUCCESS             the file was deleted sucessfully
   @retval EFI_WARN_DELETE_FAILURE the handle was closed, but the file was not
                                   deleted
@@ -1388,7 +1386,7 @@ ShellDeleteFileByName(
 
   @param[in] CommandToGetHelpOn  Pointer to a string containing the command name of help file to be printed.
   @param[in] SectionToGetHelpOn  Pointer to the section specifier(s).
-  @param[in] PrintCommandText    If TRUE, prints the command followed by the help content, otherwise prints 
+  @param[in] PrintCommandText    If TRUE, prints the command followed by the help content, otherwise prints
                                  the help content only.
   @retval EFI_DEVICE_ERROR       The help data format was incorrect.
   @retval EFI_NOT_FOUND          The help data could not be found.

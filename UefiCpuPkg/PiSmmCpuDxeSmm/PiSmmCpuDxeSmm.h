@@ -28,6 +28,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Protocol/SmmMemoryAttribute.h>
 
 #include <Guid/AcpiS3Context.h>
+#include <Guid/MemoryAttributesTable.h>
 #include <Guid/PiSmmMemoryAttributesTable.h>
 
 #include <Library/BaseLib.h>
@@ -37,7 +38,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/DebugLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/PcdLib.h>
-#include <Library/CacheMaintenanceLib.h>
 #include <Library/MtrrLib.h>
 #include <Library/SmmCpuPlatformHookLib.h>
 #include <Library/SmmServicesTableLib.h>
@@ -45,6 +45,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/DebugAgentLib.h>
+#include <Library/UefiLib.h>
 #include <Library/HobLib.h>
 #include <Library/LocalApicLib.h>
 #include <Library/UefiCpuLib.h>
@@ -52,6 +53,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/ReportStatusCodeLib.h>
 #include <Library/SmmCpuFeaturesLib.h>
 #include <Library/PeCoffGetEntryPointLib.h>
+#include <Library/RegisterCpuFeaturesLib.h>
 
 #include <AcpiCpuData.h>
 #include <CpuHotPlugData.h>
@@ -363,7 +365,6 @@ typedef struct {
   volatile BOOLEAN     *AllCpusInSync;
   SPIN_LOCK            *PFLock;
   SPIN_LOCK            *CodeAccessCheckLock;
-  SPIN_LOCK            *MemoryMappedLock;
 } SMM_CPU_SEMAPHORE_GLOBAL;
 
 ///
@@ -408,7 +409,6 @@ extern SMM_CPU_SEMAPHORES                  mSmmCpuSemaphores;
 extern UINTN                               mSemaphoreSize;
 extern SPIN_LOCK                           *mPFLock;
 extern SPIN_LOCK                           *mConfigSmmCodeAccessCheckLock;
-extern SPIN_LOCK                           *mMemoryMappedLock;
 extern EFI_SMRAM_DESCRIPTOR                *mSmmCpuSmramRanges;
 extern UINTN                               mSmmCpuSmramRangeCount;
 extern UINT8                               mPhysicalAddressBits;

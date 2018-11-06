@@ -1,7 +1,7 @@
 /** @file
   Functions declaration related with DHCPv6 for UefiPxeBc Driver.
 
-  Copyright (c) 2009 - 2016, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
 
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -116,16 +116,6 @@ typedef struct {
 } PXEBC_DHCP6_PACKET_CACHE;
 
 
-/**
-  Free all the nodes in the boot file list.
-
-  @param[in]  Head            The pointer to the head of the list.
-
-**/
-VOID
-PxeBcFreeBootFileOption (
-  IN LIST_ENTRY               *Head
-  );
 
 
 /**
@@ -253,7 +243,7 @@ PxeBcSetIp6Policy (
 
 /**
   This function will register the station IP address and flush IP instance to start using the new IP address.
-  
+
   @param[in]  Private             The pointer to PXEBC_PRIVATE_DATA.
 
   @retval     EFI_SUCCESS         The new IP address has been configured successfully.

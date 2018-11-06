@@ -36,9 +36,6 @@
 [Includes.X64]
   Include/X64
 
-[Includes.IPF]
-  Include/Ipf
-
 [Includes.EBC]
   Include/Ebc
 
@@ -273,16 +270,6 @@
 
   ##  @libraryclass  Provides services to log the SMI handler registration.
   SmiHandlerProfileLib|Include/Library/SmiHandlerProfileLib.h
-
-[LibraryClasses.IPF]
-  ##  @libraryclass  The SAL Library provides a service to make a SAL CALL.
-  SalLib|Include/Library/SalLib.h
-
-  ##  @libraryclass  Provides library services to make PAL Calls.
-  PalLib|Include/Library/PalLib.h
-
-  ##  @libraryclass  Provides library services to make Extended SAL Calls.
-  ExtendedSalLib|Include/Library/ExtendedSalLib.h
 
 [Guids]
   #
@@ -767,7 +754,7 @@
   #
   # GUID defined in PI1.6
   #
-  ## Include/Guid/DiskInfo.h
+  ## Include/Protocol/DiskInfo.h
   gEfiDiskInfoSdMmcInterfaceGuid  = { 0x8deec992, 0xd39c, 0x4a5c, { 0xab, 0x6b, 0x98, 0x6e, 0x14, 0x24, 0x2b, 0x9d }}
 
   #
@@ -1754,7 +1741,7 @@
 
   ## Include/Protocol/Tls.h
   gEfiTlsProtocolGuid                 = { 0xca959f, 0x6cfa, 0x4db1, {0x95, 0xbc, 0xe4, 0x6c, 0x47, 0x51, 0x43, 0x90 }}
-  
+
   ## Include/Protocol/TlsConfig.h
   gEfiTlsConfigurationProtocolGuid    = { 0x1682fe44, 0xbd7a, 0x4407, { 0xb7, 0xc7, 0xdc, 0xa3, 0x7c, 0xa3, 0x92, 0x2d }}
 
@@ -2169,8 +2156,15 @@
 
   ## The mask is used to control PerformanceLib behavior.<BR><BR>
   #  BIT0 - Enable Performance Measurement.<BR>
+  #  BIT1 - Disable Start Image Logging.<BR>
+  #  BIT2 - Disable Load Image logging.<BR>
+  #  BIT3 - Disable Binding Support logging.<BR>
+  #  BIT4 - Disable Binding Start logging.<BR>
+  #  BIT5 - Disable Binding Stop logging.<BR>
+  #  BIT6 - Disable all other general Perfs.<BR>
+  #  BIT1-BIT6 are evaluated when BIT0 is set.<BR>
   # @Prompt Performance Measurement Property.
-  # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask & 0xFE) == 0
+  # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask & 0x80) == 0
   gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask|0|UINT8|0x00000009
 
   ## The mask is used to control PostCodeLib behavior.<BR><BR>
@@ -2211,11 +2205,6 @@
   #  The required memory space is decided by the value of PcdMaximumGuidedExtractHandler.
   # @Prompt Memory Address of GuidedExtractHandler Table.
   gEfiMdePkgTokenSpaceGuid.PcdGuidedExtractHandlerTableAddress|0x1000000|UINT64|0x30001015
-
-[PcdsFixedAtBuild.IPF, PcdsPatchableInModule.IPF]
-  ## The base address of IO port space for IA64 arch.
-  # @Prompt IA64 IO Port Space Base Address.
-  gEfiMdePkgTokenSpaceGuid.PcdIoBlockBaseAddressForIpf|0x0ffffc000000|UINT64|0x0000000f
 
 [PcdsFixedAtBuild, PcdsPatchableInModule, PcdsDynamic, PcdsDynamicEx]
   ## This value is used to set the base address of PCI express hierarchy.

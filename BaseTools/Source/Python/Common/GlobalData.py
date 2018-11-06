@@ -66,6 +66,13 @@ gHexPatternAll = re.compile(r'0[xX]{}+$'.format(_HexChar))
 
 ## Regular expressions for string identifier checking
 gIdentifierPattern = re.compile('^[a-zA-Z][a-zA-Z0-9_]*$', re.UNICODE)
+## Regular expression for GUID c structure format
+_GuidCFormatPattern = r"{{\s*0[xX]{Hex}{{1,8}}\s*,\s*0[xX]{Hex}{{1,4}}\s*,\s*0[xX]{Hex}{{1,4}}" \
+                      r"\s*,\s*{{\s*0[xX]{Hex}{{1,2}}\s*,\s*0[xX]{Hex}{{1,2}}" \
+                      r"\s*,\s*0[xX]{Hex}{{1,2}}\s*,\s*0[xX]{Hex}{{1,2}}" \
+                      r"\s*,\s*0[xX]{Hex}{{1,2}}\s*,\s*0[xX]{Hex}{{1,2}}" \
+                      r"\s*,\s*0[xX]{Hex}{{1,2}}\s*,\s*0[xX]{Hex}{{1,2}}\s*}}\s*}}".format(Hex=_HexChar)
+gGuidCFormatPattern = re.compile(r"{}".format(_GuidCFormatPattern))
 
 #
 # A global variable for whether current build in AutoGen phase or not.
@@ -93,13 +100,6 @@ gIgnoreSource = False
 #
 gFdfParser = None
 
-#
-# If a module is built more than once with different PCDs or library classes
-# a temporary INF file with same content is created, the temporary file is removed
-# when build exits.
-#
-gTempInfs = []
-
 BuildOptionPcd = []
 
 #
@@ -120,3 +120,4 @@ gPlatformHash = None
 gPackageHash = {}
 gModuleHash = {}
 gEnableGenfdsMultiThread = False
+gSikpAutoGenCache = set()

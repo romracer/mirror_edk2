@@ -28,7 +28,7 @@ CHAR16 mTimeZoneVariableName[] = L"RTC";
 
 /**
   Compare the Hour, Minute and Second of the From time and the To time.
-  
+
   Only compare H/M/S in EFI_TIME and ignore other fields here.
 
   @param From   the first time
@@ -187,7 +187,7 @@ PcRtcInit (
   if (!EfiAtRuntime ()) {
     EfiReleaseLock (&Global->RtcLock);
   }
- 
+
   //
   // Get the data of Daylight saving and time zone, if they have been
   // stored in NV variable during previous boot.
@@ -205,7 +205,7 @@ PcRtcInit (
     Time.Daylight = (UINT8) (TimerVar >> 16);
   } else {
     Time.TimeZone = EFI_UNSPECIFIED_TIMEZONE;
-    Time.Daylight = 0;  
+    Time.Daylight = 0;
   }
 
   //
@@ -241,7 +241,7 @@ PcRtcInit (
   if (EFI_ERROR (Status)) {
     return EFI_DEVICE_ERROR;
   }
-  
+
   //
   // Reset wakeup time value to valid state when wakeup alarm is disabled and wakeup time is invalid.
   // Global variable has already had valid SavedTimeZone and Daylight,
@@ -251,9 +251,9 @@ PcRtcInit (
   if ((Enabled) || (!EFI_ERROR (Status))) {
     return EFI_SUCCESS;
   }
-  
+
   //
-  // When wakeup time is disabled and invalid, reset wakeup time register to valid state 
+  // When wakeup time is disabled and invalid, reset wakeup time register to valid state
   // but keep wakeup alarm disabled.
   //
   Time.Second = RTC_INIT_SECOND;
@@ -301,13 +301,13 @@ PcRtcInit (
     }
     return EFI_DEVICE_ERROR;
   }
-  
+
   //
   // Inhibit updates of the RTC
   //
   RegisterB.Bits.Set  = 1;
   RtcWrite (RTC_ADDRESS_REGISTER_B, RegisterB.Data);
- 
+
   //
   // Set RTC alarm time registers
   //
@@ -320,7 +320,7 @@ PcRtcInit (
   //
   RegisterB.Bits.Set = 0;
   RtcWrite (RTC_ADDRESS_REGISTER_B, RegisterB.Data);
- 
+
   //
   // Release RTC Lock.
   //
@@ -485,7 +485,7 @@ PcRtcSetTime (
      }
     return Status;
   }
-  
+
   //
   // Write timezone and daylight to RTC variable
   //
@@ -789,7 +789,7 @@ PcRtcSetWakeupTime (
     }
     return EFI_DEVICE_ERROR;
   }
-  
+
   //
   // Inhibit updates of the RTC
   //
@@ -932,7 +932,7 @@ ConvertRtcTimeToEfiTime (
   @param    Timeout  Tell how long it should take to wait.
 
   @retval   EFI_DEVICE_ERROR   RTC device error.
-  @retval   EFI_SUCCESS        RTC is updated and ready.  
+  @retval   EFI_SUCCESS        RTC is updated and ready.
 **/
 EFI_STATUS
 RtcWaitToUpdate (
@@ -1113,7 +1113,7 @@ ConvertEfiTimeToRtcTime (
 
 /**
   Compare the Hour, Minute and Second of the From time and the To time.
-  
+
   Only compare H/M/S in EFI_TIME and ignore other fields here.
 
   @param From   the first time
@@ -1164,7 +1164,7 @@ IsWithinOneDay (
   //
   ASSERT (From->Month >=1);
   ASSERT (From->Month <=12);
-  
+
   if (From->Year == To->Year) {
     if (From->Month == To->Month) {
       if ((From->Day + 1) == To->Day) {
@@ -1203,49 +1203,6 @@ IsWithinOneDay (
 }
 
 /**
-  This function find ACPI table with the specified signature in RSDT or XSDT.
-
-  @param Sdt              ACPI RSDT or XSDT.
-  @param Signature        ACPI table signature.
-  @param TablePointerSize Size of table pointer: 4 or 8.
-
-  @return ACPI table or NULL if not found.
-**/
-VOID *
-ScanTableInSDT (
-  IN EFI_ACPI_DESCRIPTION_HEADER    *Sdt,
-  IN UINT32                         Signature,
-  IN UINTN                          TablePointerSize
-  )
-{
-  UINTN                          Index;
-  UINTN                          EntryCount;
-  UINTN                          EntryBase;
-  EFI_ACPI_DESCRIPTION_HEADER    *Table;
-
-  EntryCount = (Sdt->Length - sizeof (EFI_ACPI_DESCRIPTION_HEADER)) / TablePointerSize;
-
-  EntryBase = (UINTN) (Sdt + 1);
-  for (Index = 0; Index < EntryCount; Index++) {
-    //
-    // When TablePointerSize is 4 while sizeof (VOID *) is 8, make sure the upper 4 bytes are zero.
-    //
-    Table = 0;
-    CopyMem (&Table, (VOID *) (EntryBase + Index * TablePointerSize), TablePointerSize);
-
-    if (Table == NULL) {
-      continue;
-    }
-
-    if (Table->Signature == Signature) {
-      return Table;
-    }
-  }
-
-  return NULL;
-}
-
-/**
   Get the century RTC address from the ACPI FADT table.
 
   @return  The century RTC address or 0 if not found.
@@ -1255,42 +1212,11 @@ GetCenturyRtcAddress (
   VOID
   )
 {
-  EFI_STATUS                                    Status;
-  EFI_ACPI_2_0_ROOT_SYSTEM_DESCRIPTION_POINTER  *Rsdp;
   EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE     *Fadt;
 
-  Status = EfiGetSystemConfigurationTable (&gEfiAcpiTableGuid, (VOID **) &Rsdp);
-  if (EFI_ERROR (Status)) {
-    Status = EfiGetSystemConfigurationTable (&gEfiAcpi10TableGuid, (VOID **) &Rsdp);
-  }
-
-  if (EFI_ERROR (Status) || (Rsdp == NULL)) {
-    return 0;
-  }
-
-  Fadt = NULL;
-
-  //
-  // Find FADT in XSDT
-  //
-  if (Rsdp->Revision >= EFI_ACPI_2_0_ROOT_SYSTEM_DESCRIPTION_POINTER_REVISION && Rsdp->XsdtAddress != 0) {
-    Fadt = ScanTableInSDT (
-             (EFI_ACPI_DESCRIPTION_HEADER *) (UINTN) Rsdp->XsdtAddress,
-             EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE_SIGNATURE,
-             sizeof (UINTN)
-             );
-  }
-
-  //
-  // Find FADT in RSDT
-  //
-  if (Fadt == NULL && Rsdp->RsdtAddress != 0) {
-    Fadt = ScanTableInSDT (
-             (EFI_ACPI_DESCRIPTION_HEADER *) (UINTN) Rsdp->RsdtAddress,
-             EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE_SIGNATURE,
-             sizeof (UINT32)
-             );
-  }
+  Fadt = (EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE *) EfiLocateFirstAcpiTable (
+                                                         EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE_SIGNATURE
+                                                         );
 
   if ((Fadt != NULL) &&
       (Fadt->Century > RTC_ADDRESS_REGISTER_D) && (Fadt->Century < 0x80)

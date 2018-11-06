@@ -1,7 +1,7 @@
 /** @file
   The XHCI controller driver.
 
-Copyright (c) 2011 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2011 - 2018, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -159,7 +159,7 @@ XhcReset (
   EFI_TPL            OldTpl;
 
   Xhc = XHC_FROM_THIS (This);
-  
+
   if (Xhc->DevicePath != NULL) {
     //
     // Report Status Code to indicate reset happens
@@ -169,7 +169,7 @@ XhcReset (
       (EFI_IO_BUS_USB | EFI_IOB_PC_RESET),
       Xhc->DevicePath
       );
-  }  
+  }
 
   OldTpl = gBS->RaiseTPL (XHC_TPL);
 
@@ -403,7 +403,8 @@ XhcGetRootHubPortStatus (
   State = XhcReadOpReg (Xhc, Offset);
 
   //
-  // According to XHCI 1.0 spec, bit 10~13 of the root port status register identifies the speed of the attached device.
+  // According to XHCI 1.1 spec November 2017,
+  // bit 10~13 of the root port status register identifies the speed of the attached device.
   //
   switch ((State & XHC_PORTSC_PS) >> 10) {
   case 2:
@@ -415,6 +416,7 @@ XhcGetRootHubPortStatus (
     break;
 
   case 4:
+  case 5:
     PortStatus->PortStatus |= USB_PORT_STAT_SUPER_SPEED;
     break;
 
@@ -995,7 +997,7 @@ XhcControlTransfer (
   // Hook Set_Config request from UsbBus as we need configure device endpoint.
   //
   if ((Request->Request     == USB_REQ_GET_DESCRIPTOR) &&
-      ((Request->RequestType == USB_REQUEST_TYPE (EfiUsbDataIn, USB_REQ_TYPE_STANDARD, USB_TARGET_DEVICE)) || 
+      ((Request->RequestType == USB_REQUEST_TYPE (EfiUsbDataIn, USB_REQ_TYPE_STANDARD, USB_TARGET_DEVICE)) ||
       ((Request->RequestType == USB_REQUEST_TYPE (EfiUsbDataIn, USB_REQ_TYPE_CLASS, USB_TARGET_DEVICE))))) {
     DescriptorType = (UINT8)(Request->Value >> 8);
     if ((DescriptorType == USB_DESC_TYPE_DEVICE) && ((*DataLength == sizeof (EFI_USB_DEVICE_DESCRIPTOR)) || ((DeviceSpeed == EFI_USB_SPEED_FULL) && (*DataLength == 8)))) {
@@ -1144,7 +1146,7 @@ XhcControlTransfer (
         ClearPortRequest.Length       = 0;
 
         XhcControlTransfer (
-          This, 
+          This,
           DeviceAddress,
           DeviceSpeed,
           MaximumPacketLength,
@@ -1770,6 +1772,7 @@ XhcCreateUsbHc (
   EFI_STATUS              Status;
   UINT32                  PageSize;
   UINT16                  ExtCapReg;
+  UINT8                   ReleaseNumber;
 
   Xhc = AllocateZeroPool (sizeof (USB_XHCI_INSTANCE));
 
@@ -1785,6 +1788,19 @@ XhcCreateUsbHc (
   Xhc->DevicePath            = DevicePath;
   Xhc->OriginalPciAttributes = OriginalPciAttributes;
   CopyMem (&Xhc->Usb2Hc, &gXhciUsb2HcTemplate, sizeof (EFI_USB2_HC_PROTOCOL));
+
+  Status = PciIo->Pci.Read (
+                        PciIo,
+                        EfiPciIoWidthUint8,
+                        XHC_PCI_SBRN_OFFSET,
+                        1,
+                        &ReleaseNumber
+                        );
+
+  if (!EFI_ERROR (Status)) {
+    Xhc->Usb2Hc.MajorRevision = (ReleaseNumber & 0xF0) >> 4;
+    Xhc->Usb2Hc.MinorRevision = (ReleaseNumber & 0x0F);
+  }
 
   InitializeListHead (&Xhc->AsyncIntTransfers);
 

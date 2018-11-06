@@ -20,7 +20,7 @@
   PLATFORM_VERSION               = 0.98
   DSC_SPECIFICATION              = 0x00010005
   OUTPUT_DIRECTORY               = Build/MdeModule
-  SUPPORTED_ARCHITECTURES        = IA32|IPF|X64|EBC|ARM|AARCH64
+  SUPPORTED_ARCHITECTURES        = IA32|X64|EBC|ARM|AARCH64
   BUILD_TARGETS                  = DEBUG|RELEASE|NOOPT
   SKUID_IDENTIFIER               = DEFAULT
 
@@ -79,15 +79,14 @@
   SerialPortLib|MdePkg/Library/BaseSerialPortLibNull/BaseSerialPortLibNull.inf
   CapsuleLib|MdeModulePkg/Library/DxeCapsuleLibNull/DxeCapsuleLibNull.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
-  PalLib|MdePkg/Library/BasePalLibNull/BasePalLibNull.inf
   CustomizedDisplayLib|MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf
   FrameBufferBltLib|MdeModulePkg/Library/FrameBufferBltLib/FrameBufferBltLib.inf
   #
   # Misc
   #
   DebugLib|MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
-  DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf  
-  ReportStatusCodeLib|MdePkg/Library/BaseReportStatusCodeLibNull/BaseReportStatusCodeLibNull.inf  
+  DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
+  ReportStatusCodeLib|MdePkg/Library/BaseReportStatusCodeLibNull/BaseReportStatusCodeLibNull.inf
   PeCoffExtraActionLib|MdePkg/Library/BasePeCoffExtraActionLibNull/BasePeCoffExtraActionLibNull.inf
   PerformanceLib|MdePkg/Library/BasePerformanceLibNull/BasePerformanceLibNull.inf
   DebugAgentLib|MdeModulePkg/Library/DebugAgentLibNull/DebugAgentLibNull.inf
@@ -146,7 +145,7 @@
   HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
   MemoryAllocationLib|MdeModulePkg/Library/PiSmmCoreMemoryAllocationLib/PiSmmCoreMemoryAllocationLib.inf
   SmmServicesTableLib|MdeModulePkg/Library/PiSmmCoreSmmServicesTableLib/PiSmmCoreSmmServicesTableLib.inf
-  SmmCorePlatformHookLib|MdeModulePkg/Library/SmmCorePlatformHookLibNull/SmmCorePlatformHookLibNull.inf  
+  SmmCorePlatformHookLib|MdeModulePkg/Library/SmmCorePlatformHookLibNull/SmmCorePlatformHookLibNull.inf
   SmmMemLib|MdePkg/Library/SmmMemLib/SmmMemLib.inf
 
 [LibraryClasses.common.DXE_SMM_DRIVER]
@@ -202,28 +201,6 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxSizePopulateCapsule|0x0
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxPeiPerformanceLogEntries|28
 
-[PcdsFixedAtBuild.IPF]
-  gEfiMdePkgTokenSpaceGuid.PcdIoBlockBaseAddressForIpf|0x0ffffc000000
-
-###################################################################################################
-#
-# Components Section - list of the modules and components that will be processed by compilation
-#                      tools and the EDK II tools to generate PE32/PE32+/Coff image files.
-#
-# Note: The EDK II DSC file is not used to specify how compiled binary images get placed
-#       into firmware volume images. This section is just a list of modules to compile from
-#       source into UEFI-compliant binaries.
-#       It is the FDF file that contains information on combining binary files into firmware
-#       volume images, whose concept is beyond UEFI and is described in PI specification.
-#       Binary modules do not need to be listed in this section, as they should be
-#       specified in the FDF file. For example: Shell binary (Shell_Full.efi), FAT binary (Fat.efi),
-#       Logo (Logo.bmp), and etc.
-#       There may also be modules listed in this section that are not required in the FDF file,
-#       When a module listed here is excluded from FDF file, then UEFI-compliant binary will be
-#       generated for it, but the binary will not be put into any firmware volume.
-#
-###################################################################################################
-
 [Components]
   MdeModulePkg/Application/HelloWorld/HelloWorld.inf
   MdeModulePkg/Application/MemoryProfileInfo/MemoryProfileInfo.inf
@@ -233,6 +210,7 @@
   MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe.inf
   MdeModulePkg/Bus/Pci/IncompatiblePciDeviceSupportDxe/IncompatiblePciDeviceSupportDxe.inf
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
+  MdeModulePkg/Bus/Pci/NvmExpressPei/NvmExpressPei.inf
   MdeModulePkg/Bus/Pci/SdMmcPciHcDxe/SdMmcPciHcDxe.inf
   MdeModulePkg/Bus/Pci/SdMmcPciHcPei/SdMmcPciHcPei.inf
   MdeModulePkg/Bus/Sd/EmmcBlockIoPei/EmmcBlockIoPei.inf
@@ -308,7 +286,6 @@
   MdeModulePkg/Library/CpuExceptionHandlerLibNull/CpuExceptionHandlerLibNull.inf
   MdeModulePkg/Library/PlatformHookLibSerialPortPpi/PlatformHookLibSerialPortPpi.inf
   MdeModulePkg/Library/LzmaCustomDecompressLib/LzmaCustomDecompressLib.inf
-  MdeModulePkg/Library/BrotliCustomDecompressLib/BrotliCustomDecompressLib.inf
   MdeModulePkg/Library/PeiDxeDebugLibReportStatusCode/PeiDxeDebugLibReportStatusCode.inf
   MdeModulePkg/Library/UefiBootManagerLib/UefiBootManagerLib.inf
   MdeModulePkg/Library/PlatformBootManagerLibNull/PlatformBootManagerLibNull.inf
@@ -429,7 +406,7 @@
   MdeModulePkg/Universal/FvSimpleFileSystemDxe/FvSimpleFileSystemDxe.inf
   MdeModulePkg/Universal/EsrtDxe/EsrtDxe.inf
   MdeModulePkg/Universal/EsrtFmpDxe/EsrtFmpDxe.inf
-  
+
   MdeModulePkg/Universal/PropertiesTableAttributesDxe/PropertiesTableAttributesDxe.inf
   MdeModulePkg/Universal/FileExplorerDxe/FileExplorerDxe.inf  {
     <LibraryClasses>
@@ -444,14 +421,15 @@
   MdeModulePkg/Library/DxeCapsuleLibFmp/DxeCapsuleLib.inf
   MdeModulePkg/Library/DxeCapsuleLibFmp/DxeRuntimeCapsuleLib.inf
 
-[Components.IA32, Components.X64, Components.IPF, Components.AARCH64]
+[Components.IA32, Components.X64, Components.AARCH64]
   MdeModulePkg/Universal/Network/UefiPxeBcDxe/UefiPxeBcDxe.inf
   MdeModulePkg/Universal/DebugSupportDxe/DebugSupportDxe.inf
   MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
   MdeModulePkg/Universal/EbcDxe/EbcDebugger.inf
   MdeModulePkg/Universal/EbcDxe/EbcDebuggerConfig.inf
 
-[Components.IA32, Components.X64, Components.IPF, Components.ARM, Components.AARCH64]
+[Components.IA32, Components.X64, Components.ARM, Components.AARCH64]
+  MdeModulePkg/Library/BrotliCustomDecompressLib/BrotliCustomDecompressLib.inf
   MdeModulePkg/Library/VarCheckUefiLib/VarCheckUefiLib.inf
   MdeModulePkg/Core/Dxe/DxeMain.inf {
     <LibraryClasses>
@@ -460,7 +438,7 @@
 
 [Components.IA32, Components.X64, Components.Ebc]
   MdeModulePkg/Universal/Variable/EmuRuntimeDxe/EmuVariableRuntimeDxe.inf
-  
+
 [Components.IA32, Components.X64]
   MdeModulePkg/Application/SmiHandlerProfileInfo/SmiHandlerProfileInfo.inf
   MdeModulePkg/Core/PiSmmCore/PiSmmIpl.inf
@@ -487,7 +465,6 @@
   MdeModulePkg/Library/PiSmmCoreMemoryAllocationLib/PiSmmCoreMemoryAllocationLib.inf
   MdeModulePkg/Library/SmmCorePerformanceLib/SmmCorePerformanceLib.inf
   MdeModulePkg/Library/SmmPerformanceLib/SmmPerformanceLib.inf
-  MdeModulePkg/Library/DxeSmmPerformanceLib/DxeSmmPerformanceLib.inf
   MdeModulePkg/Library/SmmLockBoxLib/SmmLockBoxPeiLib.inf
   MdeModulePkg/Library/SmmLockBoxLib/SmmLockBoxDxeLib.inf
   MdeModulePkg/Library/SmmLockBoxLib/SmmLockBoxSmmLib.inf

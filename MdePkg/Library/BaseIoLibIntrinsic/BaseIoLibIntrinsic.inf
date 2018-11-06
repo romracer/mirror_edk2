@@ -26,11 +26,11 @@
   FILE_GUID                      = 926c9cd0-4bb8-479b-9ac4-8a2a23f85307
   MODULE_TYPE                    = BASE
   VERSION_STRING                 = 1.0
-  LIBRARY_CLASS                  = IoLib 
+  LIBRARY_CLASS                  = IoLib
 
 
 #
-#  VALID_ARCHITECTURES           = IA32 X64 EBC IPF ARM AARCH64
+#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM AARCH64
 #
 
 [Sources]
@@ -56,9 +56,6 @@
   IoLibEbc.c
   IoLib.c
 
-[Sources.IPF]
-  IoLibIpf.c
-
 [Sources.ARM]
   IoLibArm.c
 
@@ -71,10 +68,4 @@
 [LibraryClasses]
   DebugLib
   BaseLib
-
-[LibraryClasses.IPF]
-  PcdLib
-
-[Pcd.IPF]
-  gEfiMdePkgTokenSpaceGuid.PcdIoBlockBaseAddressForIpf  ## SOMETIMES_CONSUMES
 

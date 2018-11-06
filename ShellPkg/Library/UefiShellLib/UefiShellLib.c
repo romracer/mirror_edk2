@@ -472,7 +472,6 @@ ShellSetFileInfo (
 
   @param  FilePath        on input the device path to the file.  On output
                           the remaining device path.
-  @param  DeviceHandle    pointer to the system device handle.
   @param  FileHandle      pointer to the file handle.
   @param  OpenMode        the mode to open the file with.
   @param  Attributes      the file's file attributes.
@@ -498,7 +497,6 @@ EFI_STATUS
 EFIAPI
 ShellOpenFileByDevicePath(
   IN OUT EFI_DEVICE_PATH_PROTOCOL     **FilePath,
-  OUT EFI_HANDLE                      *DeviceHandle,
   OUT SHELL_FILE_HANDLE               *FileHandle,
   IN UINT64                           OpenMode,
   IN UINT64                           Attributes
@@ -506,13 +504,9 @@ ShellOpenFileByDevicePath(
 {
   CHAR16                          *FileName;
   EFI_STATUS                      Status;
-  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *EfiSimpleFileSystemProtocol;
-  EFI_FILE_PROTOCOL               *Handle1;
-  EFI_FILE_PROTOCOL               *Handle2;
-  CHAR16                          *FnafPathName;
-  UINTN                           PathLen;
+  EFI_FILE_PROTOCOL               *File;
 
-  if (FilePath == NULL || FileHandle == NULL || DeviceHandle == NULL) {
+  if (FilePath == NULL || FileHandle == NULL) {
     return (EFI_INVALID_PARAMETER);
   }
 
@@ -536,117 +530,15 @@ ShellOpenFileByDevicePath(
   //
   // use old shell method.
   //
-  Status = gBS->LocateDevicePath (&gEfiSimpleFileSystemProtocolGuid,
-                                  FilePath,
-                                  DeviceHandle);
+  Status = EfiOpenFileByDevicePath (FilePath, &File, OpenMode, Attributes);
   if (EFI_ERROR (Status)) {
     return Status;
-  }
-  Status = gBS->OpenProtocol(*DeviceHandle,
-                             &gEfiSimpleFileSystemProtocolGuid,
-                             (VOID**)&EfiSimpleFileSystemProtocol,
-                             gImageHandle,
-                             NULL,
-                             EFI_OPEN_PROTOCOL_GET_PROTOCOL);
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-  Status = EfiSimpleFileSystemProtocol->OpenVolume(EfiSimpleFileSystemProtocol, &Handle1);
-  if (EFI_ERROR (Status)) {
-    FileHandle = NULL;
-    return Status;
-  }
-
-  //
-  // go down directories one node at a time.
-  //
-  while (!IsDevicePathEnd (*FilePath)) {
-    //
-    // For file system access each node should be a file path component
-    //
-    if (DevicePathType    (*FilePath) != MEDIA_DEVICE_PATH ||
-        DevicePathSubType (*FilePath) != MEDIA_FILEPATH_DP
-       ) {
-      FileHandle = NULL;
-      return (EFI_INVALID_PARAMETER);
-    }
-    //
-    // Open this file path node
-    //
-    Handle2  = Handle1;
-    Handle1 = NULL;
-
-    //
-    // File Name Alignment Fix (FNAF)
-    // Handle2->Open may be incapable of handling a unaligned CHAR16 data.
-    // The structure pointed to by FilePath may be not CHAR16 aligned.
-    // This code copies the potentially unaligned PathName data from the
-    // FilePath structure to the aligned FnafPathName for use in the
-    // calls to Handl2->Open.
-    //
-
-    //
-    // Determine length of PathName, in bytes.
-    //
-    PathLen = DevicePathNodeLength (*FilePath) - SIZE_OF_FILEPATH_DEVICE_PATH;
-
-    //
-    // Allocate memory for the aligned copy of the string Extra allocation is to allow for forced alignment
-    // Copy bytes from possibly unaligned location to aligned location
-    //
-    FnafPathName = AllocateCopyPool(PathLen, (UINT8 *)((FILEPATH_DEVICE_PATH*)*FilePath)->PathName);
-    if (FnafPathName == NULL) {
-      return EFI_OUT_OF_RESOURCES;
-    }
-
-    //
-    // Try to test opening an existing file
-    //
-    Status = Handle2->Open (
-                          Handle2,
-                          &Handle1,
-                          FnafPathName,
-                          OpenMode &~EFI_FILE_MODE_CREATE,
-                          0
-                         );
-
-    //
-    // see if the error was that it needs to be created
-    //
-    if ((EFI_ERROR (Status)) && (OpenMode != (OpenMode &~EFI_FILE_MODE_CREATE))) {
-      Status = Handle2->Open (
-                            Handle2,
-                            &Handle1,
-                            FnafPathName,
-                            OpenMode,
-                            Attributes
-                           );
-    }
-
-    //
-    // Free the alignment buffer
-    //
-    FreePool(FnafPathName);
-
-    //
-    // Close the last node
-    //
-    Handle2->Close (Handle2);
-
-    if (EFI_ERROR(Status)) {
-      return (Status);
-    }
-
-    //
-    // Get the next node
-    //
-    *FilePath = NextDevicePathNode (*FilePath);
   }
 
   //
   // This is a weak spot since if the undefined SHELL_FILE_HANDLE format changes this must change also!
   //
-  *FileHandle = (VOID*)Handle1;
+  *FileHandle = (VOID*)File;
   return (EFI_SUCCESS);
 }
 
@@ -690,7 +582,6 @@ ShellOpenFileByName(
   IN UINT64                     Attributes
   )
 {
-  EFI_HANDLE                    DeviceHandle;
   EFI_DEVICE_PATH_PROTOCOL      *FilePath;
   EFI_STATUS                    Status;
   EFI_FILE_INFO                 *FileInfo;
@@ -774,7 +665,6 @@ ShellOpenFileByName(
   FilePath = mEfiShellEnvironment2->NameToPath ((CHAR16*)FileName);
   if (FilePath != NULL) {
     return (ShellOpenFileByDevicePath(&FilePath,
-                                      &DeviceHandle,
                                       FileHandle,
                                       OpenMode,
                                       Attributes));
@@ -2158,22 +2048,22 @@ InternalCommandLineParse (
       }
       CurrentItemPackage->Value = NewValue;
       if (ValueSize == 0) {
-        StrCpyS( CurrentItemPackage->Value, 
-                  CurrentValueSize/sizeof(CHAR16), 
+        StrCpyS( CurrentItemPackage->Value,
+                  CurrentValueSize/sizeof(CHAR16),
                   Argv[LoopCounter]
                   );
       } else {
-        StrCatS( CurrentItemPackage->Value, 
-                  CurrentValueSize/sizeof(CHAR16), 
+        StrCatS( CurrentItemPackage->Value,
+                  CurrentValueSize/sizeof(CHAR16),
                   L" "
                   );
-        StrCatS( CurrentItemPackage->Value, 
-                  CurrentValueSize/sizeof(CHAR16), 
+        StrCatS( CurrentItemPackage->Value,
+                  CurrentValueSize/sizeof(CHAR16),
                   Argv[LoopCounter]
                   );
       }
       ValueSize += StrSize(Argv[LoopCounter]) + sizeof(CHAR16);
-      
+
       GetItemValue--;
       if (GetItemValue == 0) {
         InsertHeadList(*CheckPackage, &CurrentItemPackage->Link);
@@ -2732,10 +2622,10 @@ InternalPrintTo (
     return (gEfiShellProtocol->WriteFile(gEfiShellParametersProtocol->StdOut, &Size, (VOID*)String));
   }
   if (mEfiShellInterface          != NULL) {
-    if (mEfiShellInterface->RedirArgc == 0) { 
+    if (mEfiShellInterface->RedirArgc == 0) {
     //
     // Divide in half for old shell.  Must be string length not size.
-      // 
+      //
       Size /=2;  // Divide in half only when no redirection.
     }
     return (mEfiShellInterface->StdOut->Write(mEfiShellInterface->StdOut,          &Size, (VOID*)String));
@@ -3173,7 +3063,7 @@ ShellHexStrToUintn(
   if (!EFI_ERROR(ShellConvertStringToUint64(String, &RetVal, TRUE, TRUE))) {
     return ((UINTN)RetVal);
   }
-  
+
   return ((UINTN)(-1));
 }
 
@@ -3312,7 +3202,7 @@ StrnCatGrow (
   if (*Destination == NULL) {
     return (NULL);
   }
-  
+
   StrnCatS(*Destination, NewSize/sizeof(CHAR16), Source, Count);
   return *Destination;
 }
@@ -3944,7 +3834,7 @@ InternalShellStrDecimalToUint64 (
   Result = 0;
 
   //
-  // Stop upon space if requested 
+  // Stop upon space if requested
   // (if the whole value was 0)
   //
   if (StopAtSpace && *String == L' ') {
@@ -4255,7 +4145,7 @@ ShellFileHandleReadLine(
 
   @param[in] CommandToGetHelpOn  Pointer to a string containing the command name of help file to be printed.
   @param[in] SectionToGetHelpOn  Pointer to the section specifier(s).
-  @param[in] PrintCommandText    If TRUE, prints the command followed by the help content, otherwise prints 
+  @param[in] PrintCommandText    If TRUE, prints the command followed by the help content, otherwise prints
                                  the help content only.
   @retval EFI_DEVICE_ERROR       The help data format was incorrect.
   @retval EFI_NOT_FOUND          The help data could not be found.
@@ -4269,33 +4159,33 @@ ShellPrintHelp (
   IN BOOLEAN          PrintCommandText
   )
 {
-	EFI_STATUS          Status;
-	CHAR16              *OutText;
-	  
-	OutText = NULL;
-	
+  EFI_STATUS          Status;
+  CHAR16              *OutText;
+
+  OutText = NULL;
+
   //
   // Get the string to print based
   //
-	Status = gEfiShellProtocol->GetHelpText (CommandToGetHelpOn, SectionToGetHelpOn, &OutText);
-  
+  Status = gEfiShellProtocol->GetHelpText (CommandToGetHelpOn, SectionToGetHelpOn, &OutText);
+
   //
   // make sure we got a valid string
   //
   if (EFI_ERROR(Status)){
     return Status;
-	} 
+  }
   if (OutText == NULL || StrLen(OutText) == 0) {
-    return EFI_NOT_FOUND;  
-	}
-  
+    return EFI_NOT_FOUND;
+  }
+
   //
   // Chop off trailing stuff we dont need
   //
   while (OutText[StrLen(OutText)-1] == L'\r' || OutText[StrLen(OutText)-1] == L'\n' || OutText[StrLen(OutText)-1] == L' ') {
     OutText[StrLen(OutText)-1] = CHAR_NULL;
   }
-  
+
   //
   // Print this out to the console
   //
@@ -4304,17 +4194,17 @@ ShellPrintHelp (
   } else {
     ShellPrintEx(-1, -1, L"%N%s\r\n", OutText);
   }
-  
+
   SHELL_FREE_NON_NULL(OutText);
 
-	return EFI_SUCCESS;
+  return EFI_SUCCESS;
 }
 
 /**
   Function to delete a file by name
-  
+
   @param[in]       FileName       Pointer to file name to delete.
-  
+
   @retval EFI_SUCCESS             the file was deleted sucessfully
   @retval EFI_WARN_DELETE_FAILURE the handle was closed, but the file was not
                                   deleted
@@ -4341,26 +4231,26 @@ ShellDeleteFileByName(
 {
   EFI_STATUS                Status;
   SHELL_FILE_HANDLE         FileHandle;
-  
+
   Status = ShellFileExists(FileName);
-  
+
   if (Status == EFI_SUCCESS){
     Status = ShellOpenFileByName(FileName, &FileHandle, EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0x0);
     if (Status == EFI_SUCCESS){
       Status = ShellDeleteFile(&FileHandle);
     }
-  } 
+  }
 
   return(Status);
-  
+
 }
 
 /**
   Cleans off all the quotes in the string.
 
   @param[in]     OriginalString   pointer to the string to be cleaned.
-  @param[out]   CleanString      The new string with all quotes removed. 
-                                                  Memory allocated in the function and free 
+  @param[out]   CleanString      The new string with all quotes removed.
+                                                  Memory allocated in the function and free
                                                   by caller.
 
   @retval EFI_SUCCESS   The operation was successful.
@@ -4372,7 +4262,7 @@ InternalShellStripQuotes (
   )
 {
   CHAR16            *Walker;
-  
+
   if (OriginalString == NULL || CleanString == NULL) {
     return EFI_INVALID_PARAMETER;
   }

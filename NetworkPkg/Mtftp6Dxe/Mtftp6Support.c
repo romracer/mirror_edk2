@@ -1,7 +1,7 @@
 /** @file
   Mtftp6 support functions implementation.
 
-  Copyright (c) 2009 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
 
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -538,7 +538,7 @@ Mtftp6SendRequest (
 
   Packet->OpCode = HTONS (Operation);
   BufferLength  -= sizeof (Packet->OpCode);
-  
+
   Cur            = Packet->Rrq.Filename;
   Status         = AsciiStrCpyS ((CHAR8 *) Cur, BufferLength, (CHAR8 *) Token->Filename);
   ASSERT_EFI_ERROR (Status);
@@ -555,17 +555,17 @@ Mtftp6SendRequest (
   for (Index = 0; Index < Token->OptionCount; ++Index) {
     OptionStrLength = AsciiStrLen ((CHAR8 *) Options[Index].OptionStr);
     ValueStrLength  = AsciiStrLen ((CHAR8 *) Options[Index].ValueStr);
-    
+
     Status          = AsciiStrCpyS ((CHAR8 *) Cur, BufferLength, (CHAR8 *) Options[Index].OptionStr);
     ASSERT_EFI_ERROR (Status);
     BufferLength   -= (UINT32) (OptionStrLength + 1);
     Cur            += OptionStrLength + 1;
-    
+
     Status          = AsciiStrCpyS ((CHAR8 *) Cur, BufferLength, (CHAR8 *) Options[Index].ValueStr);
     ASSERT_EFI_ERROR (Status);
     BufferLength   -= (UINT32) (ValueStrLength + 1);
     Cur            += ValueStrLength + 1;
-    
+
   }
 
   //
@@ -979,6 +979,10 @@ Mtftp6OperationClean (
   Instance->ServerDataPort = 0;
   Instance->McastPort      = 0;
   Instance->BlkSize        = 0;
+  Instance->Operation      = 0;
+  Instance->WindowSize     = 1;
+  Instance->TotalBlock     = 0;
+  Instance->AckedBlock     = 0;
   Instance->LastBlk        = 0;
   Instance->PacketToLive   = 0;
   Instance->MaxRetry       = 0;
@@ -1051,6 +1055,8 @@ Mtftp6OperationStart (
   Status           = EFI_SUCCESS;
   Instance->OldTpl = gBS->RaiseTPL (TPL_CALLBACK);
 
+  Instance->Operation = OpCode;
+
   //
   // Parse the extension options in the request packet.
   //
@@ -1060,6 +1066,7 @@ Mtftp6OperationStart (
                Token->OptionList,
                Token->OptionCount,
                TRUE,
+               Instance->Operation,
                &Instance->ExtInfo
                );
 
@@ -1104,6 +1111,9 @@ Mtftp6OperationStart (
   }
   if (Instance->BlkSize == 0) {
     Instance->BlkSize = MTFTP6_DEFAULT_BLK_SIZE;
+  }
+  if (Instance->WindowSize == 0) {
+    Instance->WindowSize = MTFTP6_DEFAULT_WINDOWSIZE;
   }
   if (Instance->MaxRetry == 0) {
     Instance->MaxRetry = MTFTP6_DEFAULT_MAX_RETRY;

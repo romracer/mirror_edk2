@@ -1,7 +1,7 @@
 /** @file
   FrontPage routines to handle the callbacks and browser calls
 
-Copyright (c) 2004 - 2012, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2004 - 2018, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -198,23 +198,6 @@ InitializeFrontPage (
   IN BOOLEAN    InitializeHiiData
   );
 
-/**
-  Acquire the string associated with the ProducerGuid and return it.
-
-
-  @param ProducerGuid    - The Guid to search the HII database for
-  @param Token           - The token value of the string to extract
-  @param String          - The string that is extracted
-
-  @retval  EFI_SUCCESS  The function returns EFI_SUCCESS always.
-
-**/
-EFI_STATUS
-GetProducerString (
-  IN      EFI_GUID                  *ProducerGuid,
-  IN      EFI_STRING_ID             Token,
-  OUT     CHAR16                    **String
-  );
 
 /**
   This function is the main entry of the platform setup entry.
@@ -236,9 +219,9 @@ PlatformBdsEnterFrontPage (
 
 /**
   This function will change video resolution and text mode
-  according to defined setup mode or defined boot mode  
+  according to defined setup mode or defined boot mode
 
-  @param  IsSetupMode   Indicate mode is changed to setup mode or boot mode. 
+  @param  IsSetupMode   Indicate mode is changed to setup mode or boot mode.
 
   @retval  EFI_SUCCESS  Mode is changed successfully.
   @retval  Others             Mode failed to be changed.

@@ -1,7 +1,7 @@
 /** @file
   Routines to process TCP option.
-    
-Copyright (c) 2005 - 2006, Intel Corporation. All rights reserved.<BR>
+
+Copyright (c) 2005 - 2018, Intel Corporation. All rights reserved.<BR>
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
 which accompanies this distribution.  The full text of the license may be found at
@@ -16,9 +16,9 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 /**
     Get a UINT16 value from buffer.
-    
+
     @param Buf                  Pointer to input buffer.
-    
+
     @return                     The UINT16 value get from buffer.
 
 **/
@@ -34,9 +34,9 @@ TcpGetUint16 (
 
 /**
     Get a UINT32 value from buffer.
-    
+
     @param Buf                  Pointer to input buffer.
-    
+
     @return                     The UINT32 value get from buffer.
 
 **/
@@ -52,9 +52,9 @@ TcpGetUint32 (
 
 /**
     Put a UINT32 value in buffer.
-    
+
     @param Buf                  Pointer to the buffer.
-    @param Data                 The UINT32 Date to put in buffer 
+    @param Data                 The UINT32 Date to put in buffer
 
 **/
 VOID
@@ -350,31 +350,3 @@ TcpParseOption (
 }
 
 
-/**
-  Check the segment against PAWS.
-
-  @param  Tcb     Pointer to the TCP_CB of this TCP instance.
-  @param  TSVal   The timestamp value.
-
-  @retval 1       The segment passed the PAWS check.
-  @retval 0       The segment failed to pass the PAWS check.
-
-**/
-UINT32
-TcpPawsOK (
-  IN TCP_CB *Tcb,
-  IN UINT32 TSVal
-  )
-{
-  //
-  // PAWS as defined in RFC1323, buggy...
-  //
-  if (TCP_TIME_LT (TSVal, Tcb->TsRecent) &&
-      TCP_TIME_LT (Tcb->TsRecentAge + TCP_PAWS_24DAY, mTcpTick)) {
-
-    return 0;
-
-  }
-
-  return 1;
-}

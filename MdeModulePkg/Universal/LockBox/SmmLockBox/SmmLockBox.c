@@ -1,11 +1,11 @@
 /** @file
   LockBox SMM driver.
-  
+
   Caution: This module requires additional review when modified.
   This driver will have external input - communicate buffer in SMM mode.
   This external input must be validated carefully to avoid security issue like
   buffer overflow, integer overflow.
-  
+
   SmmLockBoxHandler(), SmmLockBoxRestore(), SmmLockBoxUpdate(), SmmLockBoxSave()
   will receive untrusted input and do basic validation.
 
@@ -47,7 +47,7 @@ BOOLEAN              mLocked = FALSE;
   Restore buffer and length are external input, so this function will validate
   it is in SMRAM.
 
-  @param LockBoxParameterSave  parameter of lock box save 
+  @param LockBoxParameterSave  parameter of lock box save
 **/
 VOID
 SmmLockBoxSave (
@@ -76,6 +76,11 @@ SmmLockBoxSave (
     LockBoxParameterSave->Header.ReturnStatus = (UINT64)EFI_ACCESS_DENIED;
     return ;
   }
+  //
+  // The AsmLfence() call here is to ensure the above range check for the
+  // CommBuffer have been completed before calling into SaveLockBox().
+  //
+  AsmLfence ();
 
   //
   // Save data
@@ -131,7 +136,7 @@ SmmLockBoxSetAttributes (
   Restore buffer and length are external input, so this function will validate
   it is in SMRAM.
 
-  @param LockBoxParameterUpdate  parameter of lock box update 
+  @param LockBoxParameterUpdate  parameter of lock box update
 **/
 VOID
 SmmLockBoxUpdate (
@@ -160,6 +165,11 @@ SmmLockBoxUpdate (
     LockBoxParameterUpdate->Header.ReturnStatus = (UINT64)EFI_ACCESS_DENIED;
     return ;
   }
+  //
+  // The AsmLfence() call here is to ensure the above range check for the
+  // CommBuffer have been completed before calling into UpdateLockBox().
+  //
+  AsmLfence ();
 
   //
   // Update data
@@ -181,7 +191,7 @@ SmmLockBoxUpdate (
   Restore buffer and length are external input, so this function will validate
   it is in SMRAM.
 
-  @param LockBoxParameterRestore  parameter of lock box restore 
+  @param LockBoxParameterRestore  parameter of lock box restore
 **/
 VOID
 SmmLockBoxRestore (
@@ -217,7 +227,10 @@ SmmLockBoxRestore (
                (VOID *)(UINTN)TempLockBoxParameterRestore.Buffer,
                (UINTN *)&TempLockBoxParameterRestore.Length
                );
-    if (Status == EFI_BUFFER_TOO_SMALL) {
+    if ((Status == EFI_BUFFER_TOO_SMALL) || (Status == EFI_SUCCESS)) {
+      //
+      // Return the actual Length value.
+      //
       LockBoxParameterRestore->Length = TempLockBoxParameterRestore.Length;
     }
   }
@@ -353,7 +366,7 @@ SmmLockBoxHandler (
   Smm Ready To Lock event notification handler.
 
   It sets a flag indicating that SMRAM has been locked.
-  
+
   @param[in] Protocol   Points to the protocol's unique identifier.
   @param[in] Interface  Points to the interface instance.
   @param[in] Handle     The handle on which the interface was installed.
@@ -378,7 +391,7 @@ SmmReadyToLockEventNotify (
   @param[in] ImageHandle  Image handle of this driver.
   @param[in] SystemTable  A Pointer to the EFI System Table.
 
-  @retval EFI_SUCEESS     
+  @retval EFI_SUCEESS
   @return Others          Some error occurs.
 **/
 EFI_STATUS

@@ -2,7 +2,7 @@
   UfsPassThruDxe driver is used to produce EFI_EXT_SCSI_PASS_THRU protocol interface
   for upper layer application to execute UFS-supported SCSI cmds.
 
-  Copyright (c) 2014 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2014 - 2018, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -179,13 +179,13 @@ DumpUicCmdExecResult (
         break;
       case 0x08:
         DEBUG ((DEBUG_VERBOSE, "UIC configuration command fails - PEER_COMMUNICATION_FAILURE\n"));
-        break; 
+        break;
       case 0x09:
         DEBUG ((DEBUG_VERBOSE, "UIC configuration command fails - BUSY\n"));
         break;
       case 0x0A:
         DEBUG ((DEBUG_VERBOSE, "UIC configuration command fails - DME_FAILURE\n"));
-        break;        
+        break;
       default :
         ASSERT (FALSE);
         break;
@@ -196,7 +196,7 @@ DumpUicCmdExecResult (
         break;
       case 0x01:
         DEBUG ((DEBUG_VERBOSE, "UIC control command fails - FAILURE\n"));
-        break;     
+        break;
       default :
         ASSERT (FALSE);
         break;
@@ -242,7 +242,7 @@ DumpQueryResponseResult (
       break;
     case 0xFE:
       DEBUG ((DEBUG_VERBOSE, "Query Response with Invalid Opcode\n"));
-      break; 
+      break;
     case 0xFF:
       DEBUG ((DEBUG_VERBOSE, "Query Response with General Failure\n"));
       break;
@@ -314,7 +314,7 @@ UfsFillTsfOfQueryReqUpiu (
       SwapLittleEndianToBigEndian ((UINT8*)&Length, sizeof (Length));
       TsfBase->Length = Length;
     }
-  
+
     if (Opcode == UtpQueryFuncOpcodeWrAttr) {
       SwapLittleEndianToBigEndian ((UINT8*)&Value, sizeof (Value));
       TsfBase->Value  = Value;
@@ -753,31 +753,6 @@ UfsFindAvailableSlotInTrl (
   return EFI_NOT_READY;
 }
 
-/**
-  Find out available slot in task management transfer list of a UFS device.
-
-  @param[in]  Private       The pointer to the UFS_PASS_THRU_PRIVATE_DATA data structure.
-  @param[out] Slot          The available slot.
-
-  @retval EFI_SUCCESS       The available slot was found successfully.
-
-**/
-EFI_STATUS
-UfsFindAvailableSlotInTmrl (
-  IN     UFS_PASS_THRU_PRIVATE_DATA   *Private,
-     OUT UINT8                        *Slot
-  )
-{
-  ASSERT ((Private != NULL) && (Slot != NULL));
-
-  //
-  // The simplest algo to always use slot 0.
-  // TODO: enhance it to support async transfer with multiple slot.
-  //
-  *Slot = 0;
-
-  return EFI_SUCCESS;
-}
 
 /**
   Start specified slot in transfer list of a UFS device.
@@ -790,7 +765,7 @@ EFI_STATUS
 UfsStartExecCmd (
   IN  UFS_PASS_THRU_PRIVATE_DATA   *Private,
   IN  UINT8                        Slot
-  ) 
+  )
 {
   UINT32        Data;
   EFI_STATUS    Status;
@@ -826,7 +801,7 @@ EFI_STATUS
 UfsStopExecCmd (
   IN  UFS_PASS_THRU_PRIVATE_DATA   *Private,
   IN  UINT8                        Slot
-  ) 
+  )
 {
   UINT32        Data;
   EFI_STATUS    Status;
@@ -858,6 +833,7 @@ UfsStopExecCmd (
   @param[in] QueryResp  Pointer to the query response.
 
   @retval EFI_INVALID_PARAMETER Packet or QueryResp are empty or opcode is invalid.
+  @retval EFI_DEVICE_ERROR      Data returned from device is invalid.
   @retval EFI_SUCCESS           Data extracted.
 
 **/
@@ -878,6 +854,13 @@ UfsGetReturnDataFromQueryResponse (
     case UtpQueryFuncOpcodeRdDesc:
       ReturnDataSize = QueryResp->Tsf.Length;
       SwapLittleEndianToBigEndian ((UINT8*)&ReturnDataSize, sizeof (UINT16));
+      //
+      // Make sure the hardware device does not return more data than expected.
+      //
+      if (ReturnDataSize > Packet->TransferLength) {
+        return EFI_DEVICE_ERROR;
+      }
+
       CopyMem (Packet->DataBuffer, (QueryResp + 1), ReturnDataSize);
       Packet->TransferLength = ReturnDataSize;
       break;
@@ -940,7 +923,7 @@ UfsSendDmRequestRetry (
   if (EFI_ERROR (Status)) {
     return Status;
   }
-  
+
   Trd = ((UTP_TRD*)Private->UtpTrlBase) + Slot;
   //
   // Fill transfer request descriptor to this slot.
@@ -1229,31 +1212,7 @@ UfsSetFlag (
   return Status;
 }
 
-/**
-  Clear specified flag to 0 on a UFS device.
 
-  @param[in]  Private           The pointer to the UFS_PASS_THRU_PRIVATE_DATA data structure.
-  @param[in]  FlagId            The ID of flag to be cleared.
-
-  @retval EFI_SUCCESS           The flag was cleared successfully.
-  @retval EFI_DEVICE_ERROR      A device error occurred while attempting to clear the flag.
-  @retval EFI_TIMEOUT           A timeout occurred while waiting for the completion of clearing the flag.
-
-**/
-EFI_STATUS
-UfsClearFlag (
-  IN  UFS_PASS_THRU_PRIVATE_DATA   *Private,
-  IN  UINT8                        FlagId
-  )
-{
-  EFI_STATUS             Status;
-  UINT8                  Value;
-
-  Value  = 0;
-  Status = UfsRwFlags (Private, FALSE, FlagId, &Value);
-
-  return Status;
-}
 
 /**
   Read specified flag from a UFS device.
@@ -1337,7 +1296,7 @@ UfsExecNopCmds (
 
   //
   // Wait for the completion of the transfer request.
-  //  
+  //
   Status = UfsWaitMemSet (Private, UFS_HC_UTRLDBR_OFFSET, BIT0 << Slot, 0, UFS_TIMEOUT);
   if (EFI_ERROR (Status)) {
     goto Exit;
@@ -1503,7 +1462,7 @@ UfsExecScsiCmds (
 
   //
   // Wait for the completion of the transfer request.
-  // 
+  //
   Status = UfsWaitMemSet (Private, UFS_HC_UTRLDBR_OFFSET, BIT0 << TransReq->Slot, 0, Packet->Timeout);
   if (EFI_ERROR (Status)) {
     goto Exit;
@@ -1516,10 +1475,17 @@ UfsExecScsiCmds (
   ASSERT (Response != NULL);
   SenseDataLen = Response->SenseDataLen;
   SwapLittleEndianToBigEndian ((UINT8*)&SenseDataLen, sizeof (UINT16));
-  
+
   if ((Packet->SenseDataLength != 0) && (Packet->SenseData != NULL)) {
-    CopyMem (Packet->SenseData, Response->SenseData, SenseDataLen);
-    Packet->SenseDataLength = (UINT8)SenseDataLen;
+    //
+    // Make sure the hardware device does not return more data than expected.
+    //
+    if (SenseDataLen <= Packet->SenseDataLength) {
+      CopyMem (Packet->SenseData, Response->SenseData, SenseDataLen);
+      Packet->SenseDataLength = (UINT8)SenseDataLen;
+    } else {
+      Packet->SenseDataLength = 0;
+    }
   }
 
   //
@@ -1649,7 +1615,7 @@ UfsExecUicCommands (
 
   //
   // UFS 2.0 spec section 5.3.1 Offset:0x20 IS.Bit10 UIC Command Completion Status (UCCS)
-  // This bit is set to '1' by the host controller upon completion of a UIC command. 
+  // This bit is set to '1' by the host controller upon completion of a UIC command.
   //
   Status  = UfsWaitMemSet (Private, UFS_HC_IS_OFFSET, UFS_HC_IS_UCCS, UFS_HC_IS_UCCS, UFS_TIMEOUT);
   if (EFI_ERROR (Status)) {
@@ -1907,7 +1873,7 @@ UfsInitTaskManagementRequestList (
   EFI_PHYSICAL_ADDRESS   CmdDescPhyAddr;
   VOID                   *CmdDescMapping;
   EFI_STATUS             Status;
-  
+
   //
   // Initial h/w and s/w context for future operations.
   //
@@ -1978,7 +1944,7 @@ UfsInitTransferRequestList (
   UINT8                  Nutrs;
   VOID                   *CmdDescHost;
   EFI_PHYSICAL_ADDRESS   CmdDescPhyAddr;
-  VOID                   *CmdDescMapping;  
+  VOID                   *CmdDescMapping;
   EFI_STATUS             Status;
 
   //
@@ -2019,7 +1985,7 @@ UfsInitTransferRequestList (
   }
 
   Private->UtpTrlBase = CmdDescHost;
-  Private->Nutrs      = Nutrs;  
+  Private->Nutrs      = Nutrs;
   Private->TrlMapping = CmdDescMapping;
 
   //
@@ -2275,8 +2241,15 @@ ProcessAsyncTaskList (
         SwapLittleEndianToBigEndian ((UINT8*)&SenseDataLen, sizeof (UINT16));
 
         if ((Packet->SenseDataLength != 0) && (Packet->SenseData != NULL)) {
-          CopyMem (Packet->SenseData, Response->SenseData, SenseDataLen);
-          Packet->SenseDataLength = (UINT8)SenseDataLen;
+          //
+          // Make sure the hardware device does not return more data than expected.
+          //
+          if (SenseDataLen <= Packet->SenseDataLength) {
+            CopyMem (Packet->SenseData, Response->SenseData, SenseDataLen);
+            Packet->SenseDataLength = (UINT8)SenseDataLen;
+          } else {
+            Packet->SenseDataLength = 0;
+          }
         }
 
         //

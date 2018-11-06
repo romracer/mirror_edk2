@@ -42,7 +42,7 @@
 
   # Include/Guid/TlsAuthConfigHii.h
   gTlsAuthConfigGuid            = { 0xb0eae4f8, 0x9a04, 0x4c6d, { 0xa7, 0x48, 0x79, 0x3d, 0xaa, 0xf, 0x65, 0xdf }}
-  
+
   # Include/Guid/TlsAuthentication.h
   gEfiTlsCaCertificateGuid      = { 0xfd2340D0, 0x3dab, 0x4349, { 0xa6, 0xc7, 0x3b, 0x4f, 0x12, 0xb4, 0x8e, 0xae }}
 
@@ -91,6 +91,12 @@
   # FALSE - HTTP connections are denied. Only the "https://" URI scheme is permitted.
   # @Prompt Indicates whether HTTP connections are permitted or not.
   gEfiNetworkPkgTokenSpaceGuid.PcdAllowHttpConnections|FALSE|BOOLEAN|0x00000008
+
+  ## This setting is to specify the MTFTP windowsize used by UEFI PXE driver.
+  # A value of 0 indicates the default value of windowsize(1).
+  # A non-zero value will be used as windowsize.
+  # @Prompt PXE TFTP windowsize.
+  gEfiNetworkPkgTokenSpaceGuid.PcdPxeTftpWindowSize|0x4|UINT64|0x10000008
 
 [PcdsFixedAtBuild, PcdsPatchableInModule, PcdsDynamic, PcdsDynamicEx]
   ## IPv6 DHCP Unique Identifier (DUID) Type configuration (From RFCs 3315 and 6355).
