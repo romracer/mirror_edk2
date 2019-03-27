@@ -1054,7 +1054,6 @@ InitializePageTablePool (
   }
 
   mPageTablePoolLock = TRUE;
-  IsModified = FALSE;
 
   //
   // Always reserve at least PAGE_TABLE_POOL_UNIT_PAGES, including one page for
@@ -1066,7 +1065,8 @@ InitializePageTablePool (
   Buffer = AllocateAlignedPages (PoolPages, PAGE_TABLE_POOL_ALIGNMENT);
   if (Buffer == NULL) {
     DEBUG ((DEBUG_ERROR, "ERROR: Out of aligned pages\r\n"));
-    goto Done;
+    mPageTablePoolLock = FALSE;
+    return FALSE;
   }
 
   DEBUG ((
@@ -1107,9 +1107,8 @@ InitializePageTablePool (
     NULL
     );
 
-Done:
   mPageTablePoolLock = FALSE;
-  return IsModified;
+  return TRUE;
 }
 
 /**
