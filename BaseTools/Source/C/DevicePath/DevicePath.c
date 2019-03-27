@@ -25,7 +25,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define UTILITY_MAJOR_VERSION 0
 #define UTILITY_MINOR_VERSION 1
 
-EFI_GUID gEfiDebugPortDevicePathGuid = DEVICE_PATH_MESSAGING_DEBUGPORT;
+EFI_GUID gEfiDebugPortProtocolGuid = DEVICE_PATH_MESSAGING_DEBUGPORT;
 EFI_GUID gEfiPcAnsiGuid = EFI_PC_ANSI_GUID;
 EFI_GUID gEfiVT100Guid = EFI_VT_100_GUID;
 EFI_GUID gEfiVT100PlusGuid = EFI_VT_100_PLUS_GUID;
@@ -178,7 +178,7 @@ int main(int argc, CHAR8 *argv[])
   }
   Str16 = (CHAR16 *)malloc(1024);
   if (Str16 == NULL) {
-    fprintf(stderr, "Resource, memory cannot be allcoated");
+    fprintf(stderr, "Resource, memory cannot be allocated");
     return STATUS_ERROR;
   }
   Ascii2UnicodeString(Str, Str16);

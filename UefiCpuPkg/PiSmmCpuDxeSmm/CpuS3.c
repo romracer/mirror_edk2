@@ -41,9 +41,12 @@ typedef struct {
 // Flags used when program the register.
 //
 typedef struct {
-  volatile UINTN           ConsoleLogLock;       // Spinlock used to control console.
-  volatile UINTN           MemoryMappedLock;     // Spinlock used to program mmio
-  volatile UINT32          *SemaphoreCount;      // Semaphore used to program semaphore.
+  volatile UINTN           ConsoleLogLock;          // Spinlock used to control console.
+  volatile UINTN           MemoryMappedLock;        // Spinlock used to program mmio
+  volatile UINT32          *CoreSemaphoreCount;     // Semaphore container used to program
+                                                    // core level semaphore.
+  volatile UINT32          *PackageSemaphoreCount;  // Semaphore container used to program
+                                                    // package level semaphore.
 } PROGRAM_CPU_REGISTER_FLAGS;
 
 //
@@ -346,13 +349,14 @@ ProgramProcessorRegister (
       //  n * P(0)       n * P(1)      ...           n * P(n)
       //
       ASSERT (
-        (ApLocation != NULL) && 
+        (ApLocation != NULL) &&
         (CpuStatus->ValidCoreCountPerPackage != 0) &&
-        (CpuFlags->SemaphoreCount) != NULL
+        (CpuFlags->CoreSemaphoreCount != NULL) &&
+        (CpuFlags->PackageSemaphoreCount != NULL)
         );
-      SemaphorePtr = CpuFlags->SemaphoreCount;
       switch (RegisterTableEntry->Value) {
       case CoreDepType:
+        SemaphorePtr = CpuFlags->CoreSemaphoreCount;
         //
         // Get Offset info for the first thread in the core which current thread belongs to.
         //
@@ -373,6 +377,7 @@ ProgramProcessorRegister (
         break;
 
       case PackageDepType:
+        SemaphorePtr = CpuFlags->PackageSemaphoreCount;
         ValidCoreCountPerPackage = (UINT32 *)(UINTN)CpuStatus->ValidCoreCountPerPackage;
         //
         // Get Offset info for the first thread in the package which current thread belongs to.
@@ -428,7 +433,7 @@ ProgramProcessorRegister (
 /**
 
   Set Processor register for one AP.
-  
+
   @param     PreSmmRegisterTable     Use pre Smm register table or register table.
 
 **/
@@ -451,6 +456,7 @@ SetRegister (
 
   InitApicId = GetInitialApicId ();
   RegisterTable = NULL;
+  ProcIndex = (UINTN)-1;
   for (Index = 0; Index < mAcpiCpuData.NumberOfCpus; Index++) {
     if (RegisterTables[Index].InitialApicId == InitApicId) {
       RegisterTable = &RegisterTables[Index];
@@ -1036,10 +1042,16 @@ GetAcpiCpuData (
     ASSERT (mAcpiCpuData.ApLocation != 0);
   }
   if (CpuStatus->PackageCount != 0) {
-    mCpuFlags.SemaphoreCount = AllocateZeroPool (
-                                 sizeof (UINT32) * CpuStatus->PackageCount *
-                                 CpuStatus->MaxCoreCount * CpuStatus->MaxThreadCount);
-    ASSERT (mCpuFlags.SemaphoreCount != NULL);
+    mCpuFlags.CoreSemaphoreCount = AllocateZeroPool (
+                                     sizeof (UINT32) * CpuStatus->PackageCount *
+                                     CpuStatus->MaxCoreCount * CpuStatus->MaxThreadCount
+                                     );
+    ASSERT (mCpuFlags.CoreSemaphoreCount != NULL);
+    mCpuFlags.PackageSemaphoreCount = AllocateZeroPool (
+                                        sizeof (UINT32) * CpuStatus->PackageCount *
+                                        CpuStatus->MaxCoreCount * CpuStatus->MaxThreadCount
+                                        );
+    ASSERT (mCpuFlags.PackageSemaphoreCount != NULL);
   }
   InitializeSpinLock((SPIN_LOCK*) &mCpuFlags.MemoryMappedLock);
   InitializeSpinLock((SPIN_LOCK*) &mCpuFlags.ConsoleLogLock);

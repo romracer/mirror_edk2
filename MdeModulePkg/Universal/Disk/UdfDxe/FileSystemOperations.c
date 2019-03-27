@@ -2144,6 +2144,10 @@ ResolveSymlink (
   UINTN               Index;
   UINT8               CompressionId;
   UDF_FILE_INFO       PreviousFile;
+  BOOLEAN             NotParent;
+  BOOLEAN             NotFile;
+
+  ZeroMem ((VOID *)File, sizeof (UDF_FILE_INFO));
 
   //
   // Symlink files on UDF volumes do not contain so much data other than
@@ -2257,6 +2261,13 @@ ResolveSymlink (
       }
       FileName[Index] = L'\0';
       break;
+    default:
+      //
+      // According to the ECMA-167 standard (3rd Edition - June 1997), Section
+      // 14.16.1.1, all other values are reserved.
+      //
+      Status = EFI_VOLUME_CORRUPTED;
+      goto Error_Find_File;
     }
 
     //
@@ -2281,18 +2292,39 @@ ResolveSymlink (
       break;
     }
 
-    if (CompareMem ((VOID *)&PreviousFile, (VOID *)Parent,
-                    sizeof (UDF_FILE_INFO)) != 0) {
+    //
+    // Check the content in the file info pointed by File.
+    //
+    if ((File->FileEntry == NULL) || (File->FileIdentifierDesc == NULL)) {
+      Status = EFI_VOLUME_CORRUPTED;
+      goto Error_Find_File;
+    }
+
+    NotParent = (CompareMem ((VOID *)&PreviousFile, (VOID *)Parent,
+                 sizeof (UDF_FILE_INFO)) != 0);
+    NotFile   = (CompareMem ((VOID *)&PreviousFile, (VOID *)File,
+                 sizeof (UDF_FILE_INFO)) != 0);
+
+    if (NotParent && NotFile) {
       CleanupFileInformation (&PreviousFile);
     }
 
-    CopyMem ((VOID *)&PreviousFile, (VOID *)File, sizeof (UDF_FILE_INFO));
+    if (NotFile) {
+      CopyMem ((VOID *)&PreviousFile, (VOID *)File, sizeof (UDF_FILE_INFO));
+    }
   }
 
   //
   // Unmap the symlink file.
   //
   FreePool (ReadFileInfo.FileData);
+
+  //
+  // Check the content in the resolved file info.
+  //
+  if ((File->FileEntry == NULL) || (File->FileIdentifierDesc == NULL)) {
+    return EFI_VOLUME_CORRUPTED;
+  }
 
   return EFI_SUCCESS;
 

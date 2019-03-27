@@ -1,7 +1,7 @@
 /** @file
   CPU Features Initialize functions.
 
-  Copyright (c) 2017 - 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2017 - 2019, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -134,11 +134,10 @@ FillProcessorInfo (
 /**
   Prepares for private data used for CPU features.
 
-  @param[in]  NumberOfCpus  Number of processor in system
 **/
 VOID
 CpuInitDataInitialize (
-  IN UINTN                             NumberOfCpus
+  VOID
   )
 {
   EFI_STATUS                           Status;
@@ -157,12 +156,22 @@ CpuInitDataInitialize (
   ACPI_CPU_DATA                        *AcpiCpuData;
   CPU_STATUS_INFORMATION               *CpuStatus;
   UINT32                               *ValidCoreCountPerPackage;
+  UINTN                                NumberOfCpus;
+  UINTN                                NumberOfEnabledProcessors;
 
   Core    = 0;
   Package = 0;
   Thread  = 0;
 
   CpuFeaturesData = GetCpuFeaturesData ();
+
+  //
+  // Initialize CpuFeaturesData->MpService as early as possile, so later function can use it.
+  //
+  CpuFeaturesData->MpService = GetMpService ();
+
+  GetNumberOfProcessor (&NumberOfCpus, &NumberOfEnabledProcessors);
+
   CpuFeaturesData->InitOrder = AllocateZeroPool (sizeof (CPU_FEATURES_INIT_ORDER) * NumberOfCpus);
   ASSERT (CpuFeaturesData->InitOrder != NULL);
 
@@ -269,8 +278,10 @@ CpuInitDataInitialize (
     DEBUG ((DEBUG_INFO, "Package: %d, Valid Core : %d\n", Index, ValidCoreCountPerPackage[Index]));
   }
 
-  CpuFeaturesData->CpuFlags.SemaphoreCount = AllocateZeroPool (sizeof (UINT32) * CpuStatus->PackageCount * CpuStatus->MaxCoreCount * CpuStatus->MaxThreadCount);
-  ASSERT (CpuFeaturesData->CpuFlags.SemaphoreCount != NULL);
+  CpuFeaturesData->CpuFlags.CoreSemaphoreCount = AllocateZeroPool (sizeof (UINT32) * CpuStatus->PackageCount * CpuStatus->MaxCoreCount * CpuStatus->MaxThreadCount);
+  ASSERT (CpuFeaturesData->CpuFlags.CoreSemaphoreCount != NULL);
+  CpuFeaturesData->CpuFlags.PackageSemaphoreCount = AllocateZeroPool (sizeof (UINT32) * CpuStatus->PackageCount * CpuStatus->MaxCoreCount * CpuStatus->MaxThreadCount);
+  ASSERT (CpuFeaturesData->CpuFlags.PackageSemaphoreCount != NULL);
 
   //
   // Get support and configuration PCDs
@@ -407,7 +418,7 @@ CollectProcessorData (
   CPU_FEATURES_DATA                    *CpuFeaturesData;
 
   CpuFeaturesData = (CPU_FEATURES_DATA *)Buffer;
-  ProcessorNumber = GetProcessorIndex ();
+  ProcessorNumber = GetProcessorIndex (CpuFeaturesData);
   CpuInfo = &CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo;
   //
   // collect processor information
@@ -471,8 +482,9 @@ DumpRegisterTableOnProcessor (
     case Msr:
       DEBUG ((
         DebugPrintErrorLevel,
-        "Processor: %d:   MSR: %x, Bit Start: %d, Bit Length: %d, Value: %lx\r\n",
+        "Processor: %04d: Index %04d, MSR  : %08x, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
         ProcessorNumber,
+        FeatureIndex,
         RegisterTableEntry->Index,
         RegisterTableEntry->ValidBitStart,
         RegisterTableEntry->ValidBitLength,
@@ -482,8 +494,9 @@ DumpRegisterTableOnProcessor (
     case ControlRegister:
       DEBUG ((
         DebugPrintErrorLevel,
-        "Processor: %d:    CR: %x, Bit Start: %d, Bit Length: %d, Value: %lx\r\n",
+        "Processor: %04d: Index %04d, CR   : %08x, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
         ProcessorNumber,
+        FeatureIndex,
         RegisterTableEntry->Index,
         RegisterTableEntry->ValidBitStart,
         RegisterTableEntry->ValidBitLength,
@@ -493,8 +506,9 @@ DumpRegisterTableOnProcessor (
     case MemoryMapped:
       DEBUG ((
         DebugPrintErrorLevel,
-        "Processor: %d:  MMIO: %lx, Bit Start: %d, Bit Length: %d, Value: %lx\r\n",
+        "Processor: %04d: Index %04d, MMIO : %08lx, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
         ProcessorNumber,
+        FeatureIndex,
         RegisterTableEntry->Index | LShiftU64 (RegisterTableEntry->HighIndex, 32),
         RegisterTableEntry->ValidBitStart,
         RegisterTableEntry->ValidBitLength,
@@ -504,8 +518,9 @@ DumpRegisterTableOnProcessor (
     case CacheControl:
       DEBUG ((
         DebugPrintErrorLevel,
-        "Processor: %d: CACHE: %x, Bit Start: %d, Bit Length: %d, Value: %lx\r\n",
+        "Processor: %04d: Index %04d, CACHE: %08lx, Bit Start: %02d, Bit Length: %02d, Value: %016lx\r\n",
         ProcessorNumber,
+        FeatureIndex,
         RegisterTableEntry->Index,
         RegisterTableEntry->ValidBitStart,
         RegisterTableEntry->ValidBitLength,
@@ -515,9 +530,10 @@ DumpRegisterTableOnProcessor (
     case Semaphore:
       DEBUG ((
         DebugPrintErrorLevel,
-        "Processor: %d: Semaphore: Scope Value: %s\r\n",
+        "Processor: %04d: Index %04d, SEMAP: %s\r\n",
         ProcessorNumber,
-        mDependTypeStr[MIN (RegisterTableEntry->Value, InvalidDepType)]
+        FeatureIndex,
+        mDependTypeStr[MIN ((UINT32)RegisterTableEntry->Value, InvalidDepType)]
         ));
       break;
 
@@ -525,6 +541,32 @@ DumpRegisterTableOnProcessor (
       break;
     }
   }
+}
+
+/**
+  Get the biggest dependence type.
+  PackageDepType > CoreDepType > ThreadDepType > NoneDepType.
+
+  @param[in]  BeforeDep           Before dependence type.
+  @param[in]  AfterDep            After dependence type.
+  @param[in]  NoneNeibBeforeDep   Before dependence type for not neighborhood features.
+  @param[in]  NoneNeibAfterDep    After dependence type for not neighborhood features.
+
+  @retval  Return the biggest dependence type.
+**/
+CPU_FEATURE_DEPENDENCE_TYPE
+BiggestDep (
+  IN CPU_FEATURE_DEPENDENCE_TYPE  BeforeDep,
+  IN CPU_FEATURE_DEPENDENCE_TYPE  AfterDep,
+  IN CPU_FEATURE_DEPENDENCE_TYPE  NoneNeibBeforeDep,
+  IN CPU_FEATURE_DEPENDENCE_TYPE  NoneNeibAfterDep
+  )
+{
+  CPU_FEATURE_DEPENDENCE_TYPE Bigger;
+
+  Bigger = MAX (BeforeDep, AfterDep);
+  Bigger = MAX (Bigger, NoneNeibBeforeDep);
+  return MAX(Bigger, NoneNeibAfterDep);
 }
 
 /**
@@ -551,6 +593,8 @@ AnalysisProcessorFeatures (
   BOOLEAN                              Success;
   CPU_FEATURE_DEPENDENCE_TYPE          BeforeDep;
   CPU_FEATURE_DEPENDENCE_TYPE          AfterDep;
+  CPU_FEATURE_DEPENDENCE_TYPE          NoneNeibBeforeDep;
+  CPU_FEATURE_DEPENDENCE_TYPE          NoneNeibAfterDep;
 
   CpuFeaturesData = GetCpuFeaturesData ();
   CpuFeaturesData->CapabilityPcd = AllocatePool (CpuFeaturesData->BitMaskSize);
@@ -627,14 +671,9 @@ AnalysisProcessorFeatures (
     //
     CpuInfo = &CpuFeaturesData->InitOrder[ProcessorNumber].CpuInfo;
     Entry = GetFirstNode (&CpuInitOrder->OrderList);
-    NextEntry = Entry->ForwardLink;
     while (!IsNull (&CpuInitOrder->OrderList, Entry)) {
       CpuFeatureInOrder = CPU_FEATURE_ENTRY_FROM_LINK (Entry);
-      if (!IsNull (&CpuInitOrder->OrderList, NextEntry)) {
-        NextCpuFeatureInOrder = CPU_FEATURE_ENTRY_FROM_LINK (NextEntry);
-      } else {
-        NextCpuFeatureInOrder = NULL;
-      }
+
       Success = FALSE;
       if (IsBitMaskMatch (CpuFeatureInOrder->FeatureMask, CpuFeaturesData->SettingPcd)) {
         Status = CpuFeatureInOrder->InitializeFunc (ProcessorNumber, CpuInfo, CpuFeatureInOrder->ConfigData, TRUE);
@@ -667,30 +706,43 @@ AnalysisProcessorFeatures (
       }
 
       if (Success) {
-        //
-        // If feature has dependence with the next feature (ONLY care core/package dependency).
-        // and feature initialize succeed, add sync semaphere here.
-        //
-        BeforeDep = DetectFeatureScope (CpuFeatureInOrder, TRUE);
-        if (NextCpuFeatureInOrder != NULL) {
-          AfterDep  = DetectFeatureScope (NextCpuFeatureInOrder, FALSE);
+        NextEntry = Entry->ForwardLink;
+        if (!IsNull (&CpuInitOrder->OrderList, NextEntry)) {
+          NextCpuFeatureInOrder = CPU_FEATURE_ENTRY_FROM_LINK (NextEntry);
+
+          //
+          // If feature has dependence with the next feature (ONLY care core/package dependency).
+          // and feature initialize succeed, add sync semaphere here.
+          //
+          BeforeDep = DetectFeatureScope (CpuFeatureInOrder, TRUE, NextCpuFeatureInOrder->FeatureMask);
+          AfterDep  = DetectFeatureScope (NextCpuFeatureInOrder, FALSE, CpuFeatureInOrder->FeatureMask);
+          //
+          // Check whether next feature has After type dependence with not neighborhood CPU
+          // Features in former CPU features.
+          //
+          NoneNeibAfterDep = DetectNoneNeighborhoodFeatureScope(NextCpuFeatureInOrder, FALSE, &CpuInitOrder->OrderList);
         } else {
-          AfterDep = NoneDepType;
+          BeforeDep        = NoneDepType;
+          AfterDep         = NoneDepType;
+          NoneNeibAfterDep = NoneDepType;
         }
         //
-        // Assume only one of the depend is valid.
+        // Check whether current feature has Before type dependence with none neighborhood
+        // CPU features in after Cpu features.
         //
-        ASSERT (!(BeforeDep > ThreadDepType && AfterDep > ThreadDepType));
+        NoneNeibBeforeDep = DetectNoneNeighborhoodFeatureScope(CpuFeatureInOrder, TRUE, &CpuInitOrder->OrderList);
+
+        //
+        // Get the biggest dependence and add semaphore for it.
+        // PackageDepType > CoreDepType > ThreadDepType > NoneDepType.
+        //
+        BeforeDep = BiggestDep(BeforeDep, AfterDep, NoneNeibBeforeDep, NoneNeibAfterDep);
         if (BeforeDep > ThreadDepType) {
           CPU_REGISTER_TABLE_WRITE32 (ProcessorNumber, Semaphore, 0, BeforeDep);
         }
-        if (AfterDep > ThreadDepType) {
-          CPU_REGISTER_TABLE_WRITE32 (ProcessorNumber, Semaphore, 0, AfterDep);
-        }
       }
 
-      Entry     = Entry->ForwardLink;
-      NextEntry = Entry->ForwardLink;
+      Entry = Entry->ForwardLink;
     }
 
     //
@@ -789,13 +841,18 @@ ProgramProcessorRegister (
     RegisterTableEntry = &RegisterTableEntryHead[Index];
 
     DEBUG_CODE_BEGIN ();
-      AcquireSpinLock (&CpuFlags->ConsoleLogLock);
+      //
+      // Wait for the AP to release the MSR spin lock.
+      //
+      while (!AcquireSpinLockOrFail (&CpuFlags->ConsoleLogLock)) {
+        CpuPause ();
+      }
       ThreadIndex = ApLocation->Package * CpuStatus->MaxCoreCount * CpuStatus->MaxThreadCount +
               ApLocation->Core * CpuStatus->MaxThreadCount +
               ApLocation->Thread;
       DEBUG ((
         DEBUG_INFO,
-        "Processor = %lu, Entry Index %lu, Type = %s!\n",
+        "Processor = %08lu, Index %08lu, Type = %s!\n",
         (UINT64)ThreadIndex,
         (UINT64)Index,
         mRegisterTypeStr[MIN ((REGISTER_TYPE)RegisterTableEntry->RegisterType, InvalidReg)]
@@ -927,9 +984,9 @@ ProgramProcessorRegister (
       //  V(0...n)       V(0...n)      ...           V(0...n)
       //  n * P(0)       n * P(1)      ...           n * P(n)
       //
-      SemaphorePtr = CpuFlags->SemaphoreCount;
       switch (RegisterTableEntry->Value) {
       case CoreDepType:
+        SemaphorePtr = CpuFlags->CoreSemaphoreCount;
         //
         // Get Offset info for the first thread in the core which current thread belongs to.
         //
@@ -950,6 +1007,7 @@ ProgramProcessorRegister (
         break;
 
       case PackageDepType:
+        SemaphorePtr = CpuFlags->PackageSemaphoreCount;
         ValidCoreCountPerPackage = (UINT32 *)(UINTN)CpuStatus->ValidCoreCountPerPackage;
         //
         // Get Offset info for the first thread in the package which current thread belongs to.
@@ -1029,6 +1087,7 @@ SetProcessorRegister (
 
   InitApicId = GetInitialApicId ();
   RegisterTable = NULL;
+  ProcIndex = (UINTN)-1;
   for (Index = 0; Index < AcpiCpuData->NumberOfCpus; Index++) {
     if (RegisterTables[Index].InitialApicId == InitApicId) {
       RegisterTable =  &RegisterTables[Index];
@@ -1060,15 +1119,11 @@ CpuFeaturesDetect (
   VOID
   )
 {
-  UINTN                  NumberOfCpus;
-  UINTN                  NumberOfEnabledProcessors;
   CPU_FEATURES_DATA      *CpuFeaturesData;
 
   CpuFeaturesData = GetCpuFeaturesData();
 
-  GetNumberOfProcessor (&NumberOfCpus, &NumberOfEnabledProcessors);
-
-  CpuInitDataInitialize (NumberOfCpus);
+  CpuInitDataInitialize ();
 
   //
   // Wakeup all APs for data collection.
@@ -1080,6 +1135,6 @@ CpuFeaturesDetect (
   //
   CollectProcessorData (CpuFeaturesData);
 
-  AnalysisProcessorFeatures (NumberOfCpus);
+  AnalysisProcessorFeatures (CpuFeaturesData->NumberOfCpus);
 }
 

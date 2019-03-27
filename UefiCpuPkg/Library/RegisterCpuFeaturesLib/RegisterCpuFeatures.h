@@ -14,6 +14,10 @@
 
 #ifndef _REGISTER_CPU_FEATURES_H_
 #define _REGISTER_CPU_FEATURES_H_
+#include <PiPei.h>
+#include <PiDxe.h>
+#include <Ppi/MpServices.h>
+#include <Protocol/MpService.h>
 
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
@@ -60,10 +64,16 @@ typedef struct {
 // Flags used when program the register.
 //
 typedef struct {
-  volatile UINTN           ConsoleLogLock;       // Spinlock used to control console.
-  volatile UINTN           MemoryMappedLock;     // Spinlock used to program mmio
-  volatile UINT32          *SemaphoreCount;      // Semaphore used to program semaphore.
+  volatile UINTN           ConsoleLogLock;          // Spinlock used to control console.
+  volatile UINTN           MemoryMappedLock;        // Spinlock used to program mmio
+  volatile UINT32          *CoreSemaphoreCount;     // Semaphore containers used to program Core semaphore.
+  volatile UINT32          *PackageSemaphoreCount;  // Semaphore containers used to program Package semaphore.
 } PROGRAM_CPU_REGISTER_FLAGS;
+
+typedef union {
+  EFI_MP_SERVICES_PROTOCOL  *Protocol;
+  EFI_PEI_MP_SERVICES_PPI   *Ppi;
+} MP_SERVICES;
 
 typedef struct {
   UINTN                    FeaturesCount;
@@ -84,6 +94,8 @@ typedef struct {
   UINTN                    BspNumber;
 
   PROGRAM_CPU_REGISTER_FLAGS  CpuFlags;
+
+  MP_SERVICES              MpService;
 } CPU_FEATURES_DATA;
 
 #define CPU_FEATURE_ENTRY_FROM_LINK(a) \
@@ -107,11 +119,13 @@ GetCpuFeaturesData (
 /**
   Worker function to return processor index.
 
+  @param  CpuFeaturesData    Cpu Feature Data structure.
+
   @return  The processor index.
 **/
 UINTN
 GetProcessorIndex (
-  VOID
+  IN CPU_FEATURES_DATA        *CpuFeaturesData
   );
 
 /**
@@ -193,15 +207,33 @@ DumpCpuFeature (
 /**
   Return feature dependence result.
 
-  @param[in]  CpuFeature        Pointer to CPU feature.
-  @param[in]  Before            Check before dependence or after.
+  @param[in]  CpuFeature            Pointer to CPU feature.
+  @param[in]  Before                Check before dependence or after.
+  @param[in]  NextCpuFeatureMask    Pointer to next CPU feature Mask.
 
   @retval     return the dependence result.
 **/
 CPU_FEATURE_DEPENDENCE_TYPE
 DetectFeatureScope (
   IN CPU_FEATURES_ENTRY         *CpuFeature,
-  IN BOOLEAN                    Before
+  IN BOOLEAN                    Before,
+  IN UINT8                      *NextCpuFeatureMask
+  );
+
+/**
+  Return feature dependence result.
+
+  @param[in]  CpuFeature            Pointer to CPU feature.
+  @param[in]  Before                Check before dependence or after.
+  @param[in]  FeatureList           Pointer to CPU feature list.
+
+  @retval     return the dependence result.
+**/
+CPU_FEATURE_DEPENDENCE_TYPE
+DetectNoneNeighborhoodFeatureScope (
+  IN CPU_FEATURES_ENTRY         *CpuFeature,
+  IN BOOLEAN                    Before,
+  IN LIST_ENTRY                 *FeatureList
   );
 
 /**
@@ -223,6 +255,16 @@ SetProcessorRegister (
 **/
 ACPI_CPU_DATA *
 GetAcpiCpuData (
+  VOID
+  );
+
+/**
+  Worker function to get MP service pointer.
+
+  @return MP_SERVICES variable.
+**/
+MP_SERVICES
+GetMpService (
   VOID
   );
 

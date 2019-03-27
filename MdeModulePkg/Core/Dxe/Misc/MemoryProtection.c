@@ -975,7 +975,7 @@ MemoryProtectionCpuArchProtocolNotify (
   DEBUG ((DEBUG_INFO, "MemoryProtectionCpuArchProtocolNotify:\n"));
   Status = CoreLocateProtocol (&gEfiCpuArchProtocolGuid, NULL, (VOID **)&gCpu);
   if (EFI_ERROR (Status)) {
-    return;
+    goto Done;
   }
 
   //
@@ -991,7 +991,7 @@ MemoryProtectionCpuArchProtocolNotify (
   HeapGuardCpuArchProtocolNotify ();
 
   if (mImageProtectionPolicy == 0) {
-    return;
+    goto Done;
   }
 
   Status = gBS->LocateHandleBuffer (
@@ -1002,7 +1002,7 @@ MemoryProtectionCpuArchProtocolNotify (
                   &HandleBuffer
                   );
   if (EFI_ERROR (Status) && (NoHandles == 0)) {
-    return ;
+    goto Done;
   }
 
   for (Index = 0; Index < NoHandles; Index++) {
@@ -1025,9 +1025,10 @@ MemoryProtectionCpuArchProtocolNotify (
 
     ProtectUefiImage (LoadedImage, LoadedImageDevicePath);
   }
+  FreePool (HandleBuffer);
 
+Done:
   CoreCloseEvent (Event);
-  return;
 }
 
 /**
@@ -1135,26 +1136,24 @@ CoreInitializeMemoryProtection (
   ASSERT (GetPermissionAttributeForMemoryType (EfiBootServicesData) ==
           GetPermissionAttributeForMemoryType (EfiConventionalMemory));
 
-  if (mImageProtectionPolicy != 0 || PcdGet64 (PcdDxeNxMemoryProtectionPolicy) != 0) {
-    Status = CoreCreateEvent (
-               EVT_NOTIFY_SIGNAL,
-               TPL_CALLBACK,
-               MemoryProtectionCpuArchProtocolNotify,
-               NULL,
-               &Event
-               );
-    ASSERT_EFI_ERROR(Status);
+  Status = CoreCreateEvent (
+             EVT_NOTIFY_SIGNAL,
+             TPL_CALLBACK,
+             MemoryProtectionCpuArchProtocolNotify,
+             NULL,
+             &Event
+             );
+  ASSERT_EFI_ERROR(Status);
 
-    //
-    // Register for protocol notifactions on this event
-    //
-    Status = CoreRegisterProtocolNotify (
-               &gEfiCpuArchProtocolGuid,
-               Event,
-               &Registration
-               );
-    ASSERT_EFI_ERROR(Status);
-  }
+  //
+  // Register for protocol notifactions on this event
+  //
+  Status = CoreRegisterProtocolNotify (
+             &gEfiCpuArchProtocolGuid,
+             Event,
+             &Registration
+             );
+  ASSERT_EFI_ERROR(Status);
 
   //
   // Register a callback to disable NULL pointer detection at EndOfDxe
@@ -1250,7 +1249,7 @@ ApplyMemoryProtectionPolicy (
   // Don't overwrite Guard pages, which should be the first and/or last page,
   // if any.
   //
-  if (IsHeapGuardEnabled ()) {
+  if (IsHeapGuardEnabled (GUARD_HEAP_TYPE_PAGE|GUARD_HEAP_TYPE_POOL)) {
     if (IsGuardPage (Memory))  {
       Memory += EFI_PAGE_SIZE;
       Length -= EFI_PAGE_SIZE;

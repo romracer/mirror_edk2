@@ -1,7 +1,7 @@
 /** @file
 SMM MP service implementation
 
-Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2009 - 2019, Intel Corporation. All rights reserved.<BR>
 Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 
 This program and the accompanying materials
@@ -1272,7 +1272,6 @@ InitializeSmmCpuSemaphores (
   UINTN                      TotalSize;
   UINTN                      GlobalSemaphoresSize;
   UINTN                      CpuSemaphoresSize;
-  UINTN                      MsrSemahporeSize;
   UINTN                      SemaphoreSize;
   UINTN                      Pages;
   UINTN                      *SemaphoreBlock;
@@ -1282,8 +1281,7 @@ InitializeSmmCpuSemaphores (
   ProcessorCount = gSmmCpuPrivate->SmmCoreEntryContext.NumberOfCpus;
   GlobalSemaphoresSize = (sizeof (SMM_CPU_SEMAPHORE_GLOBAL) / sizeof (VOID *)) * SemaphoreSize;
   CpuSemaphoresSize    = (sizeof (SMM_CPU_SEMAPHORE_CPU) / sizeof (VOID *)) * ProcessorCount * SemaphoreSize;
-  MsrSemahporeSize     = MSR_SPIN_LOCK_INIT_NUM * SemaphoreSize;
-  TotalSize = GlobalSemaphoresSize + CpuSemaphoresSize + MsrSemahporeSize;
+  TotalSize = GlobalSemaphoresSize + CpuSemaphoresSize;
   DEBUG((EFI_D_INFO, "One Semaphore Size    = 0x%x\n", SemaphoreSize));
   DEBUG((EFI_D_INFO, "Total Semaphores Size = 0x%x\n", TotalSize));
   Pages = EFI_SIZE_TO_PAGES (TotalSize);
@@ -1310,12 +1308,6 @@ InitializeSmmCpuSemaphores (
   mSmmCpuSemaphores.SemaphoreCpu.Run     = (UINT32 *)SemaphoreAddr;
   SemaphoreAddr += ProcessorCount * SemaphoreSize;
   mSmmCpuSemaphores.SemaphoreCpu.Present = (BOOLEAN *)SemaphoreAddr;
-
-  SemaphoreAddr = (UINTN)SemaphoreBlock + GlobalSemaphoresSize + CpuSemaphoresSize;
-  mSmmCpuSemaphores.SemaphoreMsr.Msr              = (SPIN_LOCK *)SemaphoreAddr;
-  mSmmCpuSemaphores.SemaphoreMsr.AvailableCounter =
-        ((UINTN)SemaphoreBlock + Pages * SIZE_4KB - SemaphoreAddr) / SemaphoreSize;
-  ASSERT (mSmmCpuSemaphores.SemaphoreMsr.AvailableCounter >= MSR_SPIN_LOCK_INIT_NUM);
 
   mPFLock                       = mSmmCpuSemaphores.SemaphoreGlobal.PFLock;
   mConfigSmmCodeAccessCheckLock = mSmmCpuSemaphores.SemaphoreGlobal.CodeAccessCheckLock;
@@ -1377,14 +1369,16 @@ InitializeMpSyncData (
 /**
   Initialize global data for MP synchronization.
 
-  @param Stacks       Base address of SMI stack buffer for all processors.
-  @param StackSize    Stack size for each processor in SMM.
+  @param Stacks             Base address of SMI stack buffer for all processors.
+  @param StackSize          Stack size for each processor in SMM.
+  @param ShadowStackSize    Shadow Stack size for each processor in SMM.
 
 **/
 UINT32
 InitializeMpServiceData (
   IN VOID        *Stacks,
-  IN UINTN       StackSize
+  IN UINTN       StackSize,
+  IN UINTN       ShadowStackSize
   )
 {
   UINT32                    Cr3;
@@ -1436,7 +1430,7 @@ InitializeMpServiceData (
     InstallSmiHandler (
       Index,
       (UINT32)mCpuHotPlugData.SmBase[Index],
-      (VOID*)((UINTN)Stacks + (StackSize * Index)),
+      (VOID*)((UINTN)Stacks + (StackSize + ShadowStackSize) * Index),
       StackSize,
       (UINTN)(GdtTssTables + GdtTableStepSize * Index),
       gcSmiGdtr.Limit + 1,

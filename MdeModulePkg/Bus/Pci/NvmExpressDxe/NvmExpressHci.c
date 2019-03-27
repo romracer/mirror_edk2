@@ -2,7 +2,7 @@
   NvmExpressDxe driver is used to manage non-volatile memory subsystem which follows
   NVM Express specification.
 
-  Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2013 - 2019, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -379,6 +379,10 @@ NvmeDisableController (
 
   if (Index == 0) {
     Status = EFI_DEVICE_ERROR;
+    REPORT_STATUS_CODE (
+      (EFI_ERROR_CODE | EFI_ERROR_MAJOR),
+      (EFI_IO_BUS_SCSI | EFI_IOB_EC_INTERFACE_ERROR)
+      );
   }
 
   DEBUG ((EFI_D_INFO, "NVMe controller is disabled with status [%r].\n", Status));
@@ -449,6 +453,10 @@ NvmeEnableController (
 
   if (Index == 0) {
     Status = EFI_TIMEOUT;
+    REPORT_STATUS_CODE (
+      (EFI_ERROR_CODE | EFI_ERROR_MAJOR),
+      (EFI_IO_BUS_SCSI | EFI_IOB_EC_INTERFACE_ERROR)
+      );
   }
 
   DEBUG ((EFI_D_INFO, "NVMe controller is enabled with status [%r].\n", Status));
@@ -584,6 +592,7 @@ NvmeCreateIoCompletionQueue (
   UINT16                                   QueueSize;
 
   Status = EFI_SUCCESS;
+  Private->CreateIoQueue = TRUE;
 
   for (Index = 1; Index < NVME_MAX_QUEUES; Index++) {
     ZeroMem (&CommandPacket, sizeof(EFI_NVM_EXPRESS_PASS_THRU_COMMAND_PACKET));
@@ -627,6 +636,8 @@ NvmeCreateIoCompletionQueue (
     }
   }
 
+  Private->CreateIoQueue = FALSE;
+
   return Status;
 }
 
@@ -653,6 +664,7 @@ NvmeCreateIoSubmissionQueue (
   UINT16                                   QueueSize;
 
   Status = EFI_SUCCESS;
+  Private->CreateIoQueue = TRUE;
 
   for (Index = 1; Index < NVME_MAX_QUEUES; Index++) {
     ZeroMem (&CommandPacket, sizeof(EFI_NVM_EXPRESS_PASS_THRU_COMMAND_PACKET));
@@ -697,6 +709,8 @@ NvmeCreateIoSubmissionQueue (
       break;
     }
   }
+
+  Private->CreateIoQueue = FALSE;
 
   return Status;
 }

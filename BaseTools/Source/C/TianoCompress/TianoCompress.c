@@ -229,7 +229,7 @@ Routine Description:
 
   Allocate memory spaces for data structures used in compression process
 
-Argements:
+Arguments:
   VOID
 
 Returns:
@@ -507,7 +507,7 @@ Returns: (VOID)
   if (mMatchLen >= 4) {
     //
     // We have just got a long match, the target tree
-    // can be located by MatchPos + 1. Travese the tree
+    // can be located by MatchPos + 1. Traverse the tree
     // from bottom up to get to a proper starting point.
     // The usage of PERC_FLAG ensures proper node deletion
     // in DeleteNode() later.
@@ -1708,7 +1708,7 @@ Returns:
   fprintf (stdout, "  --uefi\n\
             Enable UefiCompress, use TianoCompress when without this option\n");
   fprintf (stdout, "  -o FileName, --output FileName\n\
-            File will be created to store the ouput content.\n");
+            File will be created to store the output content.\n");
   fprintf (stdout, "  -v, --verbose\n\
            Turn on verbose output with informational messages.\n");
   fprintf (stdout, "  -q, --quiet\n\
@@ -1757,6 +1757,7 @@ Returns:
   SCRATCH_DATA      *Scratch;
   UINT8      *Src;
   UINT32     OrigSize;
+  UINT32     CompSize;
 
   SetUtilityName(UTILITY_NAME);
 
@@ -1765,6 +1766,7 @@ Returns:
   OutBuffer = NULL;
   Scratch   = NULL;
   OrigSize = 0;
+  CompSize = 0;
   InputLength = 0;
   InputFileName = NULL;
   OutputFileName = NULL;
@@ -2006,15 +2008,24 @@ Returns:
     }
     fwrite(OutBuffer, (size_t)(DstSize), 1, OutputFile);
   } else {
+    if (InputLength < 8){
+      Error (NULL, 0, 3000, "Invalid", "The input file %s is too small.", InputFileName);
+      goto ERROR;
+    }
     //
     // Get Compressed file original size
     //
     Src     = (UINT8 *)FileBuffer;
     OrigSize  = Src[4] + (Src[5] << 8) + (Src[6] << 16) + (Src[7] << 24);
+    CompSize  = Src[0] + (Src[1] << 8) + (Src[2] <<16) + (Src[3] <<24);
 
     //
     // Allocate OutputBuffer
     //
+    if (InputLength < CompSize + 8 || (CompSize + 8) < 8) {
+      Error (NULL, 0, 3000, "Invalid", "The input file %s data is invalid.", InputFileName);
+      goto ERROR;
+    }
     OutBuffer = (UINT8 *)malloc(OrigSize);
     if (OutBuffer == NULL) {
       Error (NULL, 0, 4001, "Resource:", "Memory cannot be allocated!");
@@ -2204,12 +2215,16 @@ Returns:
   UINT16  Mask;
   UINT16  WordOfStart;
   UINT16  WordOfCount;
+  UINT16  MaxTableLength;
 
   for (Index = 0; Index <= 16; Index++) {
     Count[Index] = 0;
   }
 
   for (Index = 0; Index < NumOfChar; Index++) {
+    if (BitLen[Index] > 16) {
+      return (UINT16) BAD_TABLE;
+    }
     Count[BitLen[Index]]++;
   }
 
@@ -2253,6 +2268,7 @@ Returns:
 
   Avail = NumOfChar;
   Mask  = (UINT16) (1U << (15 - TableBits));
+  MaxTableLength = (UINT16) (1U << TableBits);
 
   for (Char = 0; Char < NumOfChar; Char++) {
 
@@ -2266,6 +2282,9 @@ Returns:
     if (Len <= TableBits) {
 
       for (Index = Start[Len]; Index < NextCode; Index++) {
+        if (Index >= MaxTableLength) {
+          return (UINT16) BAD_TABLE;
+        }
         Table[Index] = Char;
       }
 
@@ -2650,13 +2669,24 @@ Returns: (VOID)
       DataIdx     = Sd->mOutBuf - DecodeP (Sd) - 1;
 
       BytesRemain--;
+
       while ((INT16) (BytesRemain) >= 0) {
-        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
         if (Sd->mOutBuf >= Sd->mOrigSize) {
           goto Done ;
         }
+        if (DataIdx >= Sd->mOrigSize) {
+          Sd->mBadTableFlag = (UINT16) BAD_TABLE;
+          goto Done ;
+        }
+        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
 
         BytesRemain--;
+      }
+      //
+      // Once mOutBuf is fully filled, directly return
+      //
+      if (Sd->mOutBuf >= Sd->mOrigSize) {
+        goto Done ;
       }
     }
   }
@@ -2684,11 +2714,11 @@ Arguments:
   Source          - The source buffer containing the compressed data.
   Destination     - The destination buffer to store the decompressed data
   Scratch         - The buffer used internally by the decompress routine. This  buffer is needed to store intermediate data.
-  Version         - 1 for EFI1.1 Decompress algoruthm, 2 for Tiano Decompress algorithm
+  Version         - 1 for EFI1.1 Decompress algorithm, 2 for Tiano Decompress algorithm
 
 Returns:
 
-  RETURN_SUCCESS           - Decompression is successfull
+  RETURN_SUCCESS           - Decompression is successful
   RETURN_INVALID_PARAMETER - The source data is corrupted
 
 --*/

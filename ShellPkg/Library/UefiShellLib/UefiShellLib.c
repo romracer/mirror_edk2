@@ -2,8 +2,8 @@
   Provides interface to shell functionality for shell commands and applications.
 
   (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
-  Copyright 2016 Dell Inc.
-  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright 2016-2018 Dell Technologies.<BR>
+  Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
   which accompanies this distribution.  The full text of the license may be found at
@@ -35,6 +35,125 @@ EFI_SHELL_PARAMETERS_PROTOCOL *gEfiShellParametersProtocol;
 EFI_HANDLE                    mEfiShellEnvironment2Handle;
 FILE_HANDLE_FUNCTION_MAP      FileFunctionMap;
 EFI_UNICODE_COLLATION_PROTOCOL  *mUnicodeCollationProtocol;
+
+/**
+  Return a clean, fully-qualified version of an input path.  If the return value
+  is non-NULL the caller must free the memory when it is no longer needed.
+
+  If asserts are disabled, and if the input parameter is NULL, NULL is returned.
+
+  If there is not enough memory available to create the fully-qualified path or
+  a copy of the input path, NULL is returned.
+
+  If there is no working directory, a clean copy of Path is returned.
+
+  Otherwise, the current file system or working directory (as appropriate) is
+  prepended to Path and the resulting path is cleaned and returned.
+
+  NOTE: If the input path is an empty string, then the current working directory
+  (if it exists) is returned.  In other words, an empty input path is treated
+  exactly the same as ".".
+
+  @param[in] Path  A pointer to some file or directory path.
+
+  @retval NULL          The input path is NULL or out of memory.
+
+  @retval non-NULL      A pointer to a clean, fully-qualified version of Path.
+                        If there is no working directory, then a pointer to a
+                        clean, but not necessarily fully-qualified version of
+                        Path.  The caller must free this memory when it is no
+                        longer needed.
+**/
+CHAR16*
+EFIAPI
+FullyQualifyPath(
+  IN     CONST CHAR16     *Path
+  )
+{
+  CONST CHAR16         *WorkingPath;
+  CONST CHAR16         *InputPath;
+  CHAR16               *CharPtr;
+  CHAR16               *InputFileSystem;
+  UINTN                FileSystemCharCount;
+  CHAR16               *FullyQualifiedPath;
+  UINTN                Size;
+
+  FullyQualifiedPath = NULL;
+
+  ASSERT(Path != NULL);
+  //
+  // Handle erroneous input when asserts are disabled.
+  //
+  if (Path == NULL) {
+    return NULL;
+  }
+  //
+  // In paths that contain ":", like fs0:dir/file.ext and fs2:\fqpath\file.ext,
+  // we  have to consider the file system part separately from the "path" part.
+  // If there is a file system in the path, we have to get the current working
+  // directory for that file system. Then we need to use the part of the path
+  // following the ":".  If a path does not contain ":", we use it as given.
+  //
+  InputPath = StrStr(Path, L":");
+  if (InputPath != NULL) {
+    InputPath++;
+    FileSystemCharCount = ((UINTN)InputPath - (UINTN)Path + sizeof(CHAR16)) / sizeof(CHAR16);
+    InputFileSystem = AllocateCopyPool(FileSystemCharCount * sizeof(CHAR16), Path);
+    if (InputFileSystem != NULL) {
+      InputFileSystem[FileSystemCharCount - 1] = CHAR_NULL;
+    }
+    WorkingPath = ShellGetCurrentDir(InputFileSystem);
+    SHELL_FREE_NON_NULL(InputFileSystem);
+  } else {
+    InputPath = Path;
+    WorkingPath = ShellGetEnvironmentVariable(L"cwd");
+  }
+
+  if (WorkingPath == NULL) {
+    //
+    // With no working directory, all we can do is copy and clean the input path.
+    //
+    FullyQualifiedPath = AllocateCopyPool(StrSize(Path), Path);
+  } else {
+    //
+    // Allocate space for both strings plus one more character.
+    //
+    Size = StrSize(WorkingPath) + StrSize(InputPath);
+    FullyQualifiedPath = AllocateZeroPool(Size);
+    if (FullyQualifiedPath == NULL) {
+      //
+      // Try to copy and clean just the input. No harm if not enough memory.
+      //
+      FullyQualifiedPath = AllocateCopyPool(StrSize(Path), Path);
+    } else {
+      if (*InputPath == L'\\' || *InputPath == L'/') {
+        //
+        // Absolute path: start with the current working directory, then
+        // truncate the new path after the file system part.
+        //
+        StrCpyS(FullyQualifiedPath, Size/sizeof(CHAR16), WorkingPath);
+        CharPtr = StrStr(FullyQualifiedPath, L":");
+        if (CharPtr != NULL) {
+          *(CharPtr + 1) = CHAR_NULL;
+        }
+      } else {
+        //
+        // Relative path: start with the working directory and append "\".
+        //
+        StrCpyS(FullyQualifiedPath, Size/sizeof(CHAR16), WorkingPath);
+        StrCatS(FullyQualifiedPath, Size/sizeof(CHAR16), L"\\");
+      }
+      //
+      // Now append the absolute or relative path.
+      //
+      StrCatS(FullyQualifiedPath, Size/sizeof(CHAR16), InputPath);
+    }
+  }
+
+  PathCleanUpDirectories(FullyQualifiedPath);
+
+  return FullyQualifiedPath;
+}
 
 /**
   Check if a Unicode character is a hexadecimal character.
@@ -3622,33 +3741,6 @@ ShellFileExists(
 }
 
 /**
-  Convert a Unicode character to upper case only if
-  it maps to a valid small-case ASCII character.
-
-  This internal function only deal with Unicode character
-  which maps to a valid small-case ASCII character, i.e.
-  L'a' to L'z'. For other Unicode character, the input character
-  is returned directly.
-
-  @param  Char  The character to convert.
-
-  @retval LowerCharacter   If the Char is with range L'a' to L'z'.
-  @retval Unchanged        Otherwise.
-
-**/
-CHAR16
-InternalShellCharToUpper (
-  IN      CHAR16                    Char
-  )
-{
-  if (Char >= L'a' && Char <= L'z') {
-    return (CHAR16) (Char - (L'a' - L'A'));
-  }
-
-  return Char;
-}
-
-/**
   Convert a Unicode character to numerical value.
 
   This internal function only deal with Unicode character
@@ -3670,7 +3762,7 @@ InternalShellHexCharToUintn (
     return Char - L'0';
   }
 
-  return (10 + InternalShellCharToUpper (Char) - L'A');
+  return (10 + CharToUpper (Char) - L'A');
 }
 
 /**
@@ -3730,7 +3822,7 @@ InternalShellStrHexToUint64 (
     String++;
   }
 
-  if (InternalShellCharToUpper (*String) == L'X') {
+  if (CharToUpper (*String) == L'X') {
     if (*(String - 1) != L'0') {
       return 0;
     }

@@ -113,44 +113,134 @@ IsBitMaskMatchCheck (
 }
 
 /**
+  Try to find the specify cpu featuren in former/after feature list.
+
+  @param[in]  FeatureList        Pointer to dependent CPU feature list
+  @param[in]  CurrentEntry       Pointer to current CPU feature entry.
+  @param[in]  SearchFormer       Find in former feature or after features.
+  @param[in]  FeatureMask        Pointer to CPU feature bit mask
+
+  @retval TRUE  The feature bit mask is in dependent CPU feature bit mask buffer.
+  @retval FALSE The feature bit mask is not in dependent CPU feature bit mask buffer.
+**/
+BOOLEAN
+FindSpecifyFeature (
+  IN LIST_ENTRY              *FeatureList,
+  IN LIST_ENTRY              *CurrentEntry,
+  IN BOOLEAN                 SearchFormer,
+  IN UINT8                   *FeatureMask
+  )
+{
+  CPU_FEATURES_ENTRY         *CpuFeature;
+  LIST_ENTRY                 *NextEntry;
+
+  //
+  // Check whether exist the not neighborhood entry first.
+  // If not exist, return FALSE means not found status.
+  //
+  if (SearchFormer) {
+    NextEntry = CurrentEntry->BackLink;
+    if (IsNull (FeatureList, NextEntry)) {
+      return FALSE;
+    }
+
+    NextEntry = NextEntry->BackLink;
+    if (IsNull (FeatureList, NextEntry)) {
+      return FALSE;
+    }
+
+    NextEntry = CurrentEntry->BackLink->BackLink;
+  } else {
+    NextEntry = CurrentEntry->ForwardLink;
+    if (IsNull (FeatureList, NextEntry)) {
+      return FALSE;
+    }
+
+    NextEntry = NextEntry->ForwardLink;
+    if (IsNull (FeatureList, NextEntry)) {
+      return FALSE;
+    }
+
+    NextEntry = CurrentEntry->ForwardLink->ForwardLink;
+  }
+
+  while (!IsNull (FeatureList, NextEntry)) {
+    CpuFeature = CPU_FEATURE_ENTRY_FROM_LINK (NextEntry);
+
+    if (IsBitMaskMatchCheck (FeatureMask, CpuFeature->FeatureMask)) {
+      return TRUE;
+    }
+
+    if (SearchFormer) {
+      NextEntry = NextEntry->BackLink;
+    } else {
+      NextEntry = NextEntry->ForwardLink;
+    }
+  }
+
+  return FALSE;
+}
+
+/**
   Return feature dependence result.
 
-  @param[in]  CpuFeature        Pointer to CPU feature.
-  @param[in]  Before            Check before dependence or after.
+  @param[in]  CpuFeature            Pointer to CPU feature.
+  @param[in]  Before                Check before dependence or after.
+  @param[in]  NextCpuFeatureMask    Pointer to next CPU feature Mask.
 
   @retval     return the dependence result.
 **/
 CPU_FEATURE_DEPENDENCE_TYPE
 DetectFeatureScope (
   IN CPU_FEATURES_ENTRY         *CpuFeature,
-  IN BOOLEAN                    Before
+  IN BOOLEAN                    Before,
+  IN UINT8                      *NextCpuFeatureMask
   )
 {
+  //
+  // if need to check before type dependence but the feature after current feature is not
+  // exist, means this before type dependence not valid, just return NoneDepType.
+  // Just like Feature A has a dependence of feature B, but Feature B not installed, so
+  // Feature A maybe insert to the last entry of the list. In this case, for below code,
+  // Featrure A has depend of feature B, but it is the last entry of the list, so the
+  // NextCpuFeatureMask is NULL, so the dependence for feature A here is useless and code
+  // just return NoneDepType.
+  //
+  if (NextCpuFeatureMask == NULL) {
+    return NoneDepType;
+  }
+
   if (Before) {
-    if (CpuFeature->PackageBeforeFeatureBitMask != NULL) {
+    if ((CpuFeature->PackageBeforeFeatureBitMask != NULL) &&
+        IsBitMaskMatchCheck (NextCpuFeatureMask, CpuFeature->PackageBeforeFeatureBitMask)) {
       return PackageDepType;
     }
 
-    if (CpuFeature->CoreBeforeFeatureBitMask != NULL) {
+    if ((CpuFeature->CoreBeforeFeatureBitMask != NULL) &&
+        IsBitMaskMatchCheck (NextCpuFeatureMask, CpuFeature->CoreBeforeFeatureBitMask)) {
       return CoreDepType;
     }
 
-    if (CpuFeature->BeforeFeatureBitMask != NULL) {
+    if ((CpuFeature->BeforeFeatureBitMask != NULL) &&
+        IsBitMaskMatchCheck (NextCpuFeatureMask, CpuFeature->BeforeFeatureBitMask)) {
       return ThreadDepType;
     }
 
     return NoneDepType;
   }
 
-  if (CpuFeature->PackageAfterFeatureBitMask != NULL) {
+  if ((CpuFeature->PackageAfterFeatureBitMask != NULL) &&
+      IsBitMaskMatchCheck (NextCpuFeatureMask, CpuFeature->PackageAfterFeatureBitMask)) {
     return PackageDepType;
   }
 
-  if (CpuFeature->CoreAfterFeatureBitMask != NULL) {
+  if ((CpuFeature->CoreAfterFeatureBitMask != NULL) &&
+      IsBitMaskMatchCheck (NextCpuFeatureMask, CpuFeature->CoreAfterFeatureBitMask)) {
     return CoreDepType;
   }
 
-  if (CpuFeature->AfterFeatureBitMask != NULL) {
+  if ((CpuFeature->AfterFeatureBitMask != NULL) &&
+      IsBitMaskMatchCheck (NextCpuFeatureMask, CpuFeature->AfterFeatureBitMask)) {
     return ThreadDepType;
   }
 
@@ -158,58 +248,70 @@ DetectFeatureScope (
 }
 
 /**
-  Clear dependence for the specified type.
+  Return feature dependence result.
 
-  @param[in]  CurrentFeature     Cpu feature need to clear.
-  @param[in]  Before             Before or after dependence relationship.
+  @param[in]  CpuFeature            Pointer to CPU feature.
+  @param[in]  Before                Check before dependence or after.
+  @param[in]  FeatureList           Pointer to CPU feature list.
 
+  @retval     return the dependence result.
 **/
-VOID
-ClearFeatureScope (
-  IN CPU_FEATURES_ENTRY           *CpuFeature,
-  IN BOOLEAN                      Before
+CPU_FEATURE_DEPENDENCE_TYPE
+DetectNoneNeighborhoodFeatureScope (
+  IN CPU_FEATURES_ENTRY         *CpuFeature,
+  IN BOOLEAN                    Before,
+  IN LIST_ENTRY                 *FeatureList
   )
 {
   if (Before) {
-    if (CpuFeature->BeforeFeatureBitMask != NULL) {
-      FreePool (CpuFeature->BeforeFeatureBitMask);
-      CpuFeature->BeforeFeatureBitMask = NULL;
+    if ((CpuFeature->PackageBeforeFeatureBitMask != NULL) &&
+        FindSpecifyFeature(FeatureList, &CpuFeature->Link, FALSE, CpuFeature->PackageBeforeFeatureBitMask)) {
+      return PackageDepType;
     }
-    if (CpuFeature->CoreBeforeFeatureBitMask != NULL) {
-      FreePool (CpuFeature->CoreBeforeFeatureBitMask);
-      CpuFeature->CoreBeforeFeatureBitMask = NULL;
+
+    if ((CpuFeature->CoreBeforeFeatureBitMask != NULL) &&
+        FindSpecifyFeature(FeatureList, &CpuFeature->Link, FALSE, CpuFeature->CoreBeforeFeatureBitMask)) {
+      return CoreDepType;
     }
-    if (CpuFeature->PackageBeforeFeatureBitMask != NULL) {
-      FreePool (CpuFeature->PackageBeforeFeatureBitMask);
-      CpuFeature->PackageBeforeFeatureBitMask = NULL;
+
+    if ((CpuFeature->BeforeFeatureBitMask != NULL) &&
+        FindSpecifyFeature(FeatureList, &CpuFeature->Link, FALSE, CpuFeature->BeforeFeatureBitMask)) {
+      return ThreadDepType;
     }
-  } else {
-    if (CpuFeature->PackageAfterFeatureBitMask != NULL) {
-      FreePool (CpuFeature->PackageAfterFeatureBitMask);
-      CpuFeature->PackageAfterFeatureBitMask = NULL;
-    }
-    if (CpuFeature->CoreAfterFeatureBitMask != NULL) {
-      FreePool (CpuFeature->CoreAfterFeatureBitMask);
-      CpuFeature->CoreAfterFeatureBitMask = NULL;
-    }
-    if (CpuFeature->AfterFeatureBitMask != NULL) {
-      FreePool (CpuFeature->AfterFeatureBitMask);
-      CpuFeature->AfterFeatureBitMask = NULL;
-    }
+
+    return NoneDepType;
   }
+
+  if ((CpuFeature->PackageAfterFeatureBitMask != NULL) &&
+      FindSpecifyFeature(FeatureList, &CpuFeature->Link, TRUE, CpuFeature->PackageAfterFeatureBitMask)) {
+    return PackageDepType;
+  }
+
+  if ((CpuFeature->CoreAfterFeatureBitMask != NULL) &&
+      FindSpecifyFeature(FeatureList, &CpuFeature->Link, TRUE, CpuFeature->CoreAfterFeatureBitMask)) {
+    return CoreDepType;
+  }
+
+  if ((CpuFeature->AfterFeatureBitMask != NULL) &&
+      FindSpecifyFeature(FeatureList, &CpuFeature->Link, TRUE, CpuFeature->AfterFeatureBitMask)) {
+    return ThreadDepType;
+  }
+
+  return NoneDepType;
 }
 
 /**
   Base on dependence relationship to asjust feature dependence.
 
-  ONLY when the feature before(or after) the find feature also has 
+  ONLY when the feature before(or after) the find feature also has
   dependence with the find feature. In this case, driver need to base
   on dependce relationship to decide how to insert current feature and
   adjust the feature dependence.
 
-  @param[in]  PreviousFeature    CPU feature current before the find one.
-  @param[in]  CurrentFeature     Cpu feature need to adjust.
-  @param[in]  Before             Before or after dependence relationship.
+  @param[in, out]  PreviousFeature    CPU feature current before the find one.
+  @param[in, out]  CurrentFeature     Cpu feature need to adjust.
+  @param[in]       FindFeature        Cpu feature which current feature depends.
+  @param[in]       Before             Before or after dependence relationship.
 
   @retval   TRUE   means the current feature dependence has been adjusted.
 
@@ -221,14 +323,15 @@ BOOLEAN
 AdjustFeaturesDependence (
   IN OUT CPU_FEATURES_ENTRY         *PreviousFeature,
   IN OUT CPU_FEATURES_ENTRY         *CurrentFeature,
+  IN     CPU_FEATURES_ENTRY         *FindFeature,
   IN     BOOLEAN                    Before
   )
 {
   CPU_FEATURE_DEPENDENCE_TYPE            PreDependType;
   CPU_FEATURE_DEPENDENCE_TYPE            CurrentDependType;
 
-  PreDependType     = DetectFeatureScope(PreviousFeature, Before);
-  CurrentDependType = DetectFeatureScope(CurrentFeature, Before);
+  PreDependType     = DetectFeatureScope(PreviousFeature, Before, FindFeature->FeatureMask);
+  CurrentDependType = DetectFeatureScope(CurrentFeature, Before, FindFeature->FeatureMask);
 
   //
   // If previous feature has no dependence with the find featue.
@@ -239,14 +342,12 @@ AdjustFeaturesDependence (
   }
 
   //
-  // If both feature have dependence, keep the one which needs use more 
+  // If both feature have dependence, keep the one which needs use more
   // processors and clear the dependence for the other one.
   //
   if (PreDependType >= CurrentDependType) {
-    ClearFeatureScope (CurrentFeature, Before);
     return TRUE;
   } else {
-    ClearFeatureScope (PreviousFeature, Before);
     return FALSE;
   }
 }
@@ -254,10 +355,10 @@ AdjustFeaturesDependence (
 /**
   Base on dependence relationship to asjust feature order.
 
-  @param[in]  FeatureList        Pointer to CPU feature list
-  @param[in]  FindEntry          The entry this feature depend on.
-  @param[in]  CurrentEntry       The entry for this feature.
-  @param[in]  Before             Before or after dependence relationship.
+  @param[in]       FeatureList        Pointer to CPU feature list
+  @param[in, out]  FindEntry          The entry this feature depend on.
+  @param[in, out]  CurrentEntry       The entry for this feature.
+  @param[in]       Before             Before or after dependence relationship.
 
 **/
 VOID
@@ -271,6 +372,7 @@ AdjustEntry (
   LIST_ENTRY                *PreviousEntry;
   CPU_FEATURES_ENTRY        *PreviousFeature;
   CPU_FEATURES_ENTRY        *CurrentFeature;
+  CPU_FEATURES_ENTRY        *FindFeature;
 
   //
   // For CPU feature which has core or package type dependence, later code need to insert
@@ -279,8 +381,8 @@ AdjustEntry (
   // base on dependence type of feature A and B to update the logic here.
   // For example, feature A has package type dependence and feature B has core type dependence,
   // because package type dependence need to wait for more processors which has strong dependence
-  // than core type dependence. So driver will adjust the feature order to B -> A -> C. and driver 
-  // will remove the feature dependence in feature B. 
+  // than core type dependence. So driver will adjust the feature order to B -> A -> C. and driver
+  // will remove the feature dependence in feature B.
   // Driver just needs to make sure before feature C been executed, feature A has finished its task
   // in all all thread. Feature A finished in all threads also means feature B have finshed in all
   // threads.
@@ -308,8 +410,9 @@ AdjustEntry (
     // If exist the previous or next entry, need to check it before insert curent entry.
     //
     PreviousFeature = CPU_FEATURE_ENTRY_FROM_LINK (PreviousEntry);
+    FindFeature     = CPU_FEATURE_ENTRY_FROM_LINK (FindEntry);
 
-    if (AdjustFeaturesDependence (PreviousFeature, CurrentFeature, Before)) {
+    if (AdjustFeaturesDependence (PreviousFeature, CurrentFeature, FindFeature, Before)) {
       //
       // Return TRUE means current feature dependence has been cleared and the previous
       // feature dependence has been kept and used. So insert current feature before (or after)
@@ -486,7 +589,6 @@ CheckCpuFeaturesDependency (
     if (CpuFeature->BeforeFeatureBitMask != NULL) {
       Swapped = InsertToBeforeEntry (FeatureList, CurrentEntry, CpuFeature->BeforeFeatureBitMask);
       if (Swapped) {
-        CurrentEntry = NextEntry;
         continue;
       }
     }
@@ -494,7 +596,6 @@ CheckCpuFeaturesDependency (
     if (CpuFeature->AfterFeatureBitMask != NULL) {
       Swapped = InsertToAfterEntry (FeatureList, CurrentEntry, CpuFeature->AfterFeatureBitMask);
       if (Swapped) {
-        CurrentEntry = NextEntry;
         continue;
       }
     }
@@ -502,7 +603,6 @@ CheckCpuFeaturesDependency (
     if (CpuFeature->CoreBeforeFeatureBitMask != NULL) {
       Swapped = InsertToBeforeEntry (FeatureList, CurrentEntry, CpuFeature->CoreBeforeFeatureBitMask);
       if (Swapped) {
-        CurrentEntry = NextEntry;
         continue;
       }
     }
@@ -510,7 +610,6 @@ CheckCpuFeaturesDependency (
     if (CpuFeature->CoreAfterFeatureBitMask != NULL) {
       Swapped = InsertToAfterEntry (FeatureList, CurrentEntry, CpuFeature->CoreAfterFeatureBitMask);
       if (Swapped) {
-        CurrentEntry = NextEntry;
         continue;
       }
     }
@@ -518,7 +617,6 @@ CheckCpuFeaturesDependency (
     if (CpuFeature->PackageBeforeFeatureBitMask != NULL) {
       Swapped = InsertToBeforeEntry (FeatureList, CurrentEntry, CpuFeature->PackageBeforeFeatureBitMask);
       if (Swapped) {
-        CurrentEntry = NextEntry;
         continue;
       }
     }
@@ -526,7 +624,6 @@ CheckCpuFeaturesDependency (
     if (CpuFeature->PackageAfterFeatureBitMask != NULL) {
       Swapped = InsertToAfterEntry (FeatureList, CurrentEntry, CpuFeature->PackageAfterFeatureBitMask);
       if (Swapped) {
-        CurrentEntry = NextEntry;
         continue;
       }
     }
