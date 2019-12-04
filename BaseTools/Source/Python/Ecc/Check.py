@@ -2,13 +2,7 @@
 # This file is used to define checkpoints used by ECC tool
 #
 # Copyright (c) 2008 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 from __future__ import absolute_import
 import Common.LongFilePathOs as os
@@ -271,7 +265,7 @@ class Check(object):
         self.FunctionLayoutCheckBody()
         self.FunctionLayoutCheckLocalVariable()
         self.FunctionLayoutCheckDeprecated()
-    
+
     # To check if the deprecated functions are used
     def FunctionLayoutCheckDeprecated(self):
         if EccGlobalData.gConfig.CFunctionLayoutCheckNoDeprecated == '1' or EccGlobalData.gConfig.CFunctionLayoutCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
@@ -447,7 +441,7 @@ class Check(object):
         self.DeclCheckUnionType()
 
 
-    # Check whether no use of int, unsigned, char, void, static, long in any .c, .h or .asl files.
+    # Check whether no use of int, unsigned, char, void, long in any .c, .h or .asl files.
     def DeclCheckNoUseCType(self):
         if EccGlobalData.gConfig.DeclarationDataTypeCheckNoUseCType == '1' or EccGlobalData.gConfig.DeclarationDataTypeCheckAll == '1' or EccGlobalData.gConfig.CheckAll == '1':
             EdkLogger.quiet("Checking Declaration No use C type ...")

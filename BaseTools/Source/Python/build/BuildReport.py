@@ -5,13 +5,7 @@
 # build all target completes successfully.
 #
 # Copyright (c) 2010 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ## Import Modules
@@ -40,7 +34,7 @@ from Common.BuildToolError import FORMAT_INVALID
 from Common.LongFilePathSupport import OpenLongFilePath as open
 from Common.MultipleWorkspace import MultipleWorkspace as mws
 import Common.GlobalData as GlobalData
-from AutoGen.AutoGen import ModuleAutoGen
+from AutoGen.ModuleAutoGen import ModuleAutoGen
 from Common.Misc import PathClass
 from Common.StringUtils import NormPath
 from Common.DataType import *
@@ -564,6 +558,7 @@ class ModuleReport(object):
     def __init__(self, M, ReportType):
         self.ModuleName = M.Module.BaseName
         self.ModuleInfPath = M.MetaFile.File
+        self.ModuleArch = M.Arch
         self.FileGuid = M.Guid
         self.Size = 0
         self.BuildTimeStamp = None
@@ -626,7 +621,7 @@ class ModuleReport(object):
     def GenerateReport(self, File, GlobalPcdReport, GlobalPredictionReport, GlobalDepexParser, ReportType):
         FileWrite(File, gSectionStart)
 
-        FwReportFileName = os.path.join(self._BuildDir, "DEBUG", self.ModuleName + ".txt")
+        FwReportFileName = os.path.join(self._BuildDir, "OUTPUT", self.ModuleName + ".txt")
         if os.path.isfile(FwReportFileName):
             try:
                 FileContents = open(FwReportFileName).read()
@@ -674,6 +669,7 @@ class ModuleReport(object):
 
         FileWrite(File, "Module Summary")
         FileWrite(File, "Module Name:          %s" % self.ModuleName)
+        FileWrite(File, "Module Arch:          %s" % self.ModuleArch)
         FileWrite(File, "Module INF Path:      %s" % self.ModuleInfPath)
         FileWrite(File, "File GUID:            %s" % self.FileGuid)
         if self.Size:
@@ -1423,10 +1419,19 @@ class PcdReport(object):
                         FileWrite(File, '%*s' % (self.MaxLen + 4, SkuInfo.VpdOffset))
                         VPDPcdItem = (Pcd.TokenSpaceGuidCName + '.' + PcdTokenCName, SkuIdName, SkuInfo.VpdOffset, Pcd.MaxDatumSize, SkuInfo.DefaultValue)
                         if VPDPcdItem not in VPDPcdList:
-                            VPDPcdList.append(VPDPcdItem)
+                            PcdGuidList = self.UnusedPcds.get(Pcd.TokenSpaceGuidCName)
+                            if PcdGuidList:
+                                PcdList = PcdGuidList.get(Pcd.Type)
+                                if not PcdList:
+                                    VPDPcdList.append(VPDPcdItem)
+                                for VpdPcd in PcdList:
+                                    if PcdTokenCName == VpdPcd.TokenCName:
+                                        break
+                                else:
+                                    VPDPcdList.append(VPDPcdItem)
                     if IsStructure:
                         FiledOverrideFlag = False
-                        OverrideValues = Pcd.SkuOverrideValues[Sku]
+                        OverrideValues = Pcd.SkuOverrideValues.get(Sku)
                         if OverrideValues:
                             Keys = list(OverrideValues.keys())
                             OverrideFieldStruct = self.OverrideFieldValue(Pcd, OverrideValues[Keys[0]])
@@ -2146,7 +2151,7 @@ class PlatformReport(object):
                         INFList = GlobalData.gFdfParser.Profile.InfDict[Pa.Arch]
                         for InfName in INFList:
                             InfClass = PathClass(NormPath(InfName), Wa.WorkspaceDir, Pa.Arch)
-                            Ma = ModuleAutoGen(Wa, InfClass, Pa.BuildTarget, Pa.ToolChain, Pa.Arch, Wa.MetaFile)
+                            Ma = ModuleAutoGen(Wa, InfClass, Pa.BuildTarget, Pa.ToolChain, Pa.Arch, Wa.MetaFile, Pa.DataPipe)
                             if Ma is None:
                                 continue
                             if Ma not in ModuleAutoGenList:

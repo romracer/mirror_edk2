@@ -2,13 +2,7 @@
 # This file is used to parse and evaluate range expression in Pcd declaration.
 #
 # Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.    The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 
 # # Import Modules
 #
@@ -348,7 +342,9 @@ class RangeExpression(BaseExpression):
                 raise BadExpression(ERR_STRING_EXPR % Operator)
 
 
-    def __init__(self, Expression, PcdDataType, SymbolTable = {}):
+    def __init__(self, Expression, PcdDataType, SymbolTable = None):
+        if SymbolTable is None:
+            SymbolTable = {}
         super(RangeExpression, self).__init__(self, Expression, PcdDataType, SymbolTable)
         self._NoProcess = False
         if not isinstance(Expression, type('')):

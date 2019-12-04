@@ -4,13 +4,7 @@
 #
 # Copyright (c) 2011 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-# This program and the accompanying materials are licensed and made available
-# under the terms and conditions of the BSD License which accompanies this
-# distribution. The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 '''
 StringUtils
@@ -869,7 +863,7 @@ def ConvertNOTEQToNE(Expr):
 ## SplitPcdEntry
 #
 # Split an PCD entry string to Token.CName and PCD value and FFE.
-# NOTE: PCD Value and FFE can contain "|" in it's expression. And in INF specification, have below rule.
+# NOTE: PCD Value and FFE can contain "|" in its expression. And in INF specification, have below rule.
 # When using the characters "|" or "||" in an expression, the expression must be encapsulated in
 # open "(" and close ")" parenthesis.
 #

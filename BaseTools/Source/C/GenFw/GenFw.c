@@ -2,13 +2,7 @@
 Converts a pe32+ image to an FW, Te image type, or other specific image.
 
 Copyright (c) 2004 - 2018, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -659,7 +653,11 @@ PeCoffConvertImageToXip (
     //
     // Make the size of raw data in section header alignment.
     //
-    SectionHeader->SizeOfRawData = (SectionHeader->Misc.VirtualSize + PeHdr->Pe32.OptionalHeader.FileAlignment - 1) & (~(PeHdr->Pe32.OptionalHeader.FileAlignment - 1));
+    SectionSize = (SectionHeader->Misc.VirtualSize + PeHdr->Pe32.OptionalHeader.FileAlignment - 1) & (~(PeHdr->Pe32.OptionalHeader.FileAlignment - 1));
+    if (SectionSize < SectionHeader->SizeOfRawData) {
+      SectionHeader->SizeOfRawData = SectionSize;
+    }
+
     SectionHeader->PointerToRawData = SectionHeader->VirtualAddress;
   }
 
@@ -1005,7 +1003,7 @@ Returns:
     CopyMem (
       FileBuffer + SectionHeader->PointerToRawData,
       (VOID*) (UINTN) (ImageContext.ImageAddress + SectionHeader->VirtualAddress),
-      SectionHeader->SizeOfRawData
+      SectionHeader->SizeOfRawData < SectionHeader->Misc.VirtualSize ? SectionHeader->SizeOfRawData : SectionHeader->Misc.VirtualSize
       );
   }
 
@@ -1117,6 +1115,7 @@ Returns:
   time_t                           InputFileTime;
   time_t                           OutputFileTime;
   struct stat                      Stat_Buf;
+  BOOLEAN                          ZeroDebugFlag;
 
   SetUtilityName (UTILITY_NAME);
 
@@ -1164,6 +1163,7 @@ Returns:
   NegativeAddr           = FALSE;
   InputFileTime          = 0;
   OutputFileTime         = 0;
+  ZeroDebugFlag          = FALSE;
 
   if (argc == 1) {
     Error (NULL, 0, 1001, "Missing options", "No input options.");
@@ -1203,6 +1203,9 @@ Returns:
         goto Finish;
       }
       ModuleType = argv[1];
+      if (mOutImageType == FW_ZERO_DEBUG_IMAGE) {
+        ZeroDebugFlag = TRUE;
+      }
       if (mOutImageType != FW_TE_IMAGE) {
         mOutImageType = FW_EFI_IMAGE;
       }
@@ -1226,6 +1229,9 @@ Returns:
     }
 
     if ((stricmp (argv[0], "-t") == 0) || (stricmp (argv[0], "--terse") == 0)) {
+      if (mOutImageType == FW_ZERO_DEBUG_IMAGE) {
+        ZeroDebugFlag = TRUE;
+      }
       mOutImageType = FW_TE_IMAGE;
       argc --;
       argv ++;
@@ -1247,7 +1253,12 @@ Returns:
     }
 
     if ((stricmp (argv[0], "-z") == 0) || (stricmp (argv[0], "--zero") == 0)) {
-      mOutImageType = FW_ZERO_DEBUG_IMAGE;
+      if (mOutImageType == FW_DUMMY_IMAGE) {
+        mOutImageType = FW_ZERO_DEBUG_IMAGE;
+      }
+      if (mOutImageType == FW_TE_IMAGE || mOutImageType == FW_EFI_IMAGE) {
+        ZeroDebugFlag = TRUE;
+      }
       argc --;
       argv ++;
       continue;
@@ -2594,7 +2605,7 @@ Returns:
   //
   // Zero Time/Data field
   //
-  ZeroDebugData (FileBuffer, FALSE);
+  ZeroDebugData (FileBuffer, ZeroDebugFlag);
 
   if (mOutImageType == FW_TE_IMAGE) {
     if ((PeHdr->Pe32.FileHeader.NumberOfSections &~0xFF) || (Type &~0xFF)) {

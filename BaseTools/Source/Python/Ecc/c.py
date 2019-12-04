@@ -2,13 +2,7 @@
 # This file is used to be the c coding style checking of ECC tool
 #
 # Copyright (c) 2009 - 2019, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 from __future__ import print_function
@@ -501,6 +495,8 @@ def CollectSourceCodeDataIntoDB(RootDir):
     tuple = os.walk(RootDir)
     IgnoredPattern = GetIgnoredDirListPattern()
     ParseErrorFileList = []
+    TokenReleaceList = EccGlobalData.gConfig.TokenReleaceList
+    TokenReleaceList.extend(['L",\\\""'])
 
     for dirpath, dirnames, filenames in tuple:
         if IgnoredPattern.match(dirpath.upper()):
@@ -525,6 +521,7 @@ def CollectSourceCodeDataIntoDB(RootDir):
                 EdkLogger.info("Parsing " + FullName)
                 model = f.endswith('c') and DataClass.MODEL_FILE_C or DataClass.MODEL_FILE_H
                 collector = CodeFragmentCollector.CodeFragmentCollector(FullName)
+                collector.TokenReleaceList = TokenReleaceList
                 try:
                     collector.ParseFile()
                 except UnicodeError:
@@ -1862,7 +1859,7 @@ def CheckDeclNoUseCType(FullFileName):
                        where Model = %d
                    """ % (FileTable, DataClass.MODEL_IDENTIFIER_VARIABLE)
     ResultSet = Db.TblFile.Exec(SqlStatement)
-    CTypeTuple = ('int', 'unsigned', 'char', 'void', 'static', 'long')
+    CTypeTuple = ('int', 'unsigned', 'char', 'void', 'long')
     for Result in ResultSet:
         for Type in CTypeTuple:
             if PatternInModifier(Result[0], Type):
@@ -2391,7 +2388,7 @@ def CheckFileHeaderDoxygenComments(FullFileName):
                     PrintErrorMsg(ERROR_HEADER_CHECK_FILE, 'File header comment content should start with two spaces at each line', FileTable, ID)
 
             CommentLine = CommentLine.strip()
-            if CommentLine.startswith('Copyright'):
+            if CommentLine.startswith('Copyright') or ('Copyright' in CommentLine and CommentLine.lower().startswith('(c)')):
                 NoCopyrightFlag = False
                 if CommentLine.find('All rights reserved') == -1:
                     for Copyright in EccGlobalData.gConfig.Copyright:

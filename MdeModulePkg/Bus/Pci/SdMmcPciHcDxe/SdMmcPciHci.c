@@ -8,13 +8,7 @@
 
   Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
   Copyright (c) 2015 - 2019, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -1343,6 +1337,40 @@ SdMmcHcUhsSignaling (
   }
 
   return EFI_SUCCESS;
+}
+
+/**
+  Set driver strength in host controller.
+
+  @param[in] PciIo           The PCI IO protocol instance.
+  @param[in] SlotIndex       The slot index of the card.
+  @param[in] DriverStrength  DriverStrength to set in the controller.
+
+  @retval EFI_SUCCESS  Driver strength programmed successfully.
+  @retval Others       Failed to set driver strength.
+**/
+EFI_STATUS
+SdMmcSetDriverStrength (
+  IN EFI_PCI_IO_PROTOCOL      *PciIo,
+  IN UINT8                    SlotIndex,
+  IN SD_DRIVER_STRENGTH_TYPE  DriverStrength
+  )
+{
+  EFI_STATUS  Status;
+  UINT16      HostCtrl2;
+
+  if (DriverStrength == SdDriverStrengthIgnore) {
+    return EFI_SUCCESS;
+  }
+
+  HostCtrl2 = (UINT16)~SD_MMC_HC_CTRL_DRIVER_STRENGTH_MASK;
+  Status = SdMmcHcAndMmio (PciIo, SlotIndex, SD_MMC_HC_HOST_CTRL2, sizeof (HostCtrl2), &HostCtrl2);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  HostCtrl2 = (DriverStrength << 4) & SD_MMC_HC_CTRL_DRIVER_STRENGTH_MASK;
+  return SdMmcHcOrMmio (PciIo, SlotIndex, SD_MMC_HC_HOST_CTRL2, sizeof (HostCtrl2), &HostCtrl2);
 }
 
 /**

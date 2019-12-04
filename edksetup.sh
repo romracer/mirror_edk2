@@ -1,13 +1,7 @@
 #
 # Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
 # Copyright (c) 2016, Linaro Ltd. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-# 
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 # In *inux environment, the build tools's source is required and need to be compiled
 # firstly, please reference https://github.com/tianocore/tianocore.github.io/wiki/SourceForge-to-Github-Quick-Start
@@ -55,11 +49,11 @@ function SetWorkspace()
     return 0
   fi
 
-  if [ ! ${BASH_SOURCE[0]} -ef ./edksetup.sh ] && [ -z "$PACKAGES_PATH" ]
+  if [ ! ${BASH_SOURCE[0]} -ef ./$SCRIPTNAME ] && [ -z "$PACKAGES_PATH" ]
   then
     echo Run this script from the base of your tree.  For example:
     echo "  cd /Path/To/Edk/Root"
-    echo "  . edksetup.sh"
+    echo "  . $SCRIPTNAME"
     return 1
   fi
 
@@ -77,7 +71,7 @@ function SetWorkspace()
   #
   # Set $WORKSPACE
   #
-  export WORKSPACE=`pwd`
+  export WORKSPACE=$PWD
   return 0
 }
 
@@ -114,27 +108,26 @@ function SetupEnv()
 function SetupPython3()
 {
   if [ $origin_version ];then
-      origin_version=
+    origin_version=
+  fi
+  for python in $(whereis python3)
+  do
+    python=$(echo $python | grep "[[:digit:]]$" || true)
+    python_version=${python##*python}
+    if [ -z "${python_version}" ] || (! command -v $python >/dev/null 2>&1);then
+      continue
     fi
-    for python in $(whereis python3)
-    do
-      python=$(echo $python | grep "[[:digit:]]$" || true)
-      python_version=${python##*python}
-      if [ -z "${python_version}" ] || (! command -v $python >/dev/null 2>&1);then
-        continue
-      fi
-      if [ -z $origin_version ];then
-        origin_version=$python_version
-        export PYTHON_COMMAND=$python
-        continue
-      fi
-      ret=`echo "$origin_version < $python_version" |bc`
-      if [ "$ret" -eq 1 ]; then
-        origin_version=$python_version
-        export PYTHON_COMMAND=$python
-      fi
-    done
-    return 0
+    if [ -z $origin_version ];then
+      origin_version=$python_version
+      export PYTHON_COMMAND=$python
+      continue
+    fi
+      if [[ "$origin_version" < "$python_version" ]]; then
+      origin_version=$python_version
+      export PYTHON_COMMAND=$python
+    fi
+  done
+  return 0
 }
 
 function SetupPython()
@@ -171,8 +164,7 @@ function SetupPython()
         export PYTHON_COMMAND=$python
         continue
       fi
-      ret=`echo "$origin_version < $python_version" |bc`
-      if [ "$ret" -eq 1 ]; then
+      if [[ "$origin_version" < "$python_version" ]]; then
         origin_version=$python_version
         export PYTHON_COMMAND=$python
       fi
@@ -202,12 +194,12 @@ do
       RECONFIG=TRUE
       shift
     ;;
-    -?|-h|--help|*)
+    *)
       HelpMsg
       break
     ;;
   esac
-  I=$(($I - 1))
+  I=$((I - 1))
 done
 
 if [ $I -gt 0 ]

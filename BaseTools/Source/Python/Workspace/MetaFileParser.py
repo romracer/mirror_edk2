@@ -3,13 +3,7 @@
 #
 # Copyright (c) 2008 - 2018, Intel Corporation. All rights reserved.<BR>
 # (C) Copyright 2015-2018 Hewlett Packard Enterprise Development LP<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ##
@@ -166,6 +160,7 @@ class MetaFileParser(object):
         self.MetaFile = FilePath
         self._FileDir = self.MetaFile.Dir
         self._Defines = {}
+        self._Packages = []
         self._FileLocalMacros = {}
         self._SectionsMacroDict = defaultdict(dict)
 
@@ -334,6 +329,7 @@ class MetaFileParser(object):
                 S1 = ItemList[1].upper()
             else:
                 S1 = TAB_ARCH_COMMON
+            S1 = ReplaceMacro(S1, self._Macros)
             ArchList.add(S1)
 
             # S2 may be Platform or ModuleType
@@ -356,6 +352,13 @@ class MetaFileParser(object):
                             File=self.MetaFile, Line=self._LineIndex + 1, ExtraData=self._CurrentLine)
         # If the section information is needed later, it should be stored in database
         self._ValueList[0] = self._SectionName
+
+    ## [packages] section parser
+    @ParseMacro
+    def _PackageParser(self):
+        self._CurrentLine = CleanString(self._CurrentLine)
+        self._Packages.append(self._CurrentLine)
+        self._ValueList[0] = self._CurrentLine
 
     ## [defines] section parser
     @ParseMacro
@@ -576,7 +579,8 @@ class InfParser(MetaFileParser):
         NmakeLine = ''
         Content = ''
         try:
-            Content = open(str(self.MetaFile), 'r').readlines()
+            with open(str(self.MetaFile), 'r') as File:
+                Content = File.readlines()
         except:
             EdkLogger.error("Parser", FILE_READ_FAILURE, ExtraData=self.MetaFile)
 
@@ -853,6 +857,7 @@ class DscParser(MetaFileParser):
         TAB_LIBRARIES.upper()                       :   MODEL_EFI_LIBRARY_INSTANCE,
         TAB_LIBRARY_CLASSES.upper()                 :   MODEL_EFI_LIBRARY_CLASS,
         TAB_BUILD_OPTIONS.upper()                   :   MODEL_META_DATA_BUILD_OPTION,
+        TAB_PACKAGES.upper()                        :   MODEL_META_DATA_PACKAGE,
         TAB_PCDS_FIXED_AT_BUILD_NULL.upper()        :   MODEL_PCD_FIXED_AT_BUILD,
         TAB_PCDS_PATCHABLE_IN_MODULE_NULL.upper()   :   MODEL_PCD_PATCHABLE_IN_MODULE,
         TAB_PCDS_FEATURE_FLAG_NULL.upper()          :   MODEL_PCD_FEATURE_FLAG,
@@ -863,7 +868,6 @@ class DscParser(MetaFileParser):
         TAB_PCDS_DYNAMIC_EX_HII_NULL.upper()        :   MODEL_PCD_DYNAMIC_EX_HII,
         TAB_PCDS_DYNAMIC_EX_VPD_NULL.upper()        :   MODEL_PCD_DYNAMIC_EX_VPD,
         TAB_COMPONENTS.upper()                      :   MODEL_META_DATA_COMPONENT,
-        TAB_COMPONENTS_SOURCE_OVERRIDE_PATH.upper() :   MODEL_META_DATA_COMPONENT_SOURCE_OVERRIDE_PATH,
         TAB_DSC_DEFINES.upper()                     :   MODEL_META_DATA_HEADER,
         TAB_DSC_DEFINES_DEFINE                      :   MODEL_META_DATA_DEFINE,
         TAB_DSC_DEFINES_EDKGLOBAL                   :   MODEL_META_DATA_GLOBAL_DEFINE,
@@ -950,7 +954,8 @@ class DscParser(MetaFileParser):
     def Start(self):
         Content = ''
         try:
-            Content = open(str(self.MetaFile), 'r').readlines()
+            with open(str(self.MetaFile), 'r') as File:
+                Content = File.readlines()
         except:
             EdkLogger.error("Parser", FILE_READ_FAILURE, ExtraData=self.MetaFile)
 
@@ -1290,8 +1295,6 @@ class DscParser(MetaFileParser):
 
         self._ValueList[0:len(TokenList)] = TokenList
 
-    def _CompponentSourceOverridePathParser(self):
-        self._ValueList[0] = self._CurrentLine
 
     ## [BuildOptions] section parser
     @ParseMacro
@@ -1346,6 +1349,7 @@ class DscParser(MetaFileParser):
             MODEL_META_DATA_DEFINE                          :   self.__ProcessDefine,
             MODEL_META_DATA_GLOBAL_DEFINE                   :   self.__ProcessDefine,
             MODEL_META_DATA_INCLUDE                         :   self.__ProcessDirective,
+            MODEL_META_DATA_PACKAGE                         :   self.__ProcessPackages,
             MODEL_META_DATA_CONDITIONAL_STATEMENT_IF        :   self.__ProcessDirective,
             MODEL_META_DATA_CONDITIONAL_STATEMENT_ELSE      :   self.__ProcessDirective,
             MODEL_META_DATA_CONDITIONAL_STATEMENT_IFDEF     :   self.__ProcessDirective,
@@ -1366,7 +1370,6 @@ class DscParser(MetaFileParser):
             MODEL_PCD_DYNAMIC_EX_HII                        :   self.__ProcessPcd,
             MODEL_PCD_DYNAMIC_EX_VPD                        :   self.__ProcessPcd,
             MODEL_META_DATA_COMPONENT                       :   self.__ProcessComponent,
-            MODEL_META_DATA_COMPONENT_SOURCE_OVERRIDE_PATH  :   self.__ProcessSourceOverridePath,
             MODEL_META_DATA_BUILD_OPTION                    :   self.__ProcessBuildOption,
             MODEL_UNKNOWN                                   :   self._Skip,
             MODEL_META_DATA_USER_EXTENSION                  :   self._SkipUserExtension,
@@ -1493,7 +1496,12 @@ class DscParser(MetaFileParser):
             self._SubsectionType = MODEL_UNKNOWN
 
     def __RetrievePcdValue(self):
-        Content = open(str(self.MetaFile), 'r').readlines()
+        try:
+            with open(str(self.MetaFile), 'r') as File:
+                Content = File.readlines()
+        except:
+            EdkLogger.error("Parser", FILE_READ_FAILURE, ExtraData=self.MetaFile)
+
         GlobalData.gPlatformOtherPcds['DSCFILE'] = str(self.MetaFile)
         for PcdType in (MODEL_PCD_PATCHABLE_IN_MODULE, MODEL_PCD_DYNAMIC_DEFAULT, MODEL_PCD_DYNAMIC_HII,
                         MODEL_PCD_DYNAMIC_VPD, MODEL_PCD_DYNAMIC_EX_DEFAULT, MODEL_PCD_DYNAMIC_EX_HII,
@@ -1645,6 +1653,9 @@ class DscParser(MetaFileParser):
                 self._ValueList = None
                 self._ContentIndex -= 1
 
+    def __ProcessPackages(self):
+        self._ValueList[0] = ReplaceMacro(self._ValueList[0], self._Macros)
+
     def __ProcessSkuId(self):
         self._ValueList = [ReplaceMacro(Value, self._Macros, RaiseError=True)
                            for Value in self._ValueList]
@@ -1696,9 +1707,6 @@ class DscParser(MetaFileParser):
     def __ProcessComponent(self):
         self._ValueList[0] = ReplaceMacro(self._ValueList[0], self._Macros)
 
-    def __ProcessSourceOverridePath(self):
-        self._ValueList[0] = ReplaceMacro(self._ValueList[0], self._Macros)
-
     def __ProcessBuildOption(self):
         self._ValueList = [ReplaceMacro(Value, self._Macros, RaiseError=False)
                            for Value in self._ValueList]
@@ -1724,9 +1732,9 @@ class DscParser(MetaFileParser):
         MODEL_PCD_DYNAMIC_EX_HII                        :   _PcdParser,
         MODEL_PCD_DYNAMIC_EX_VPD                        :   _PcdParser,
         MODEL_META_DATA_COMPONENT                       :   _ComponentParser,
-        MODEL_META_DATA_COMPONENT_SOURCE_OVERRIDE_PATH  :   _CompponentSourceOverridePathParser,
         MODEL_META_DATA_BUILD_OPTION                    :   _BuildOptionParser,
         MODEL_UNKNOWN                                   :   MetaFileParser._Skip,
+        MODEL_META_DATA_PACKAGE                         :   MetaFileParser._PackageParser,
         MODEL_META_DATA_USER_EXTENSION                  :   MetaFileParser._SkipUserExtension,
         MODEL_META_DATA_SECTION_HEADER                  :   MetaFileParser._SectionHeaderParser,
         MODEL_META_DATA_SUBSECTION_HEADER               :   _SubsectionHeaderParser,
@@ -1786,7 +1794,8 @@ class DecParser(MetaFileParser):
     def Start(self):
         Content = ''
         try:
-            Content = open(str(self.MetaFile), 'r').readlines()
+            with open(str(self.MetaFile), 'r') as File:
+                Content = File.readlines()
         except:
             EdkLogger.error("Parser", FILE_READ_FAILURE, ExtraData=self.MetaFile)
 

@@ -2,13 +2,7 @@
   Header file for ACPI parser
 
   Copyright (c) 2016 - 2019, ARM Limited. All rights reserved.
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef ACPIPARSER_H_
@@ -411,12 +405,16 @@ ParseAcpi (
 
   @param [in] Ptr     Pointer to the start of the buffer.
   @param [in] Indent  Number of spaces to indent the output.
+  @param [in] Length  Length of the GAS structure buffer.
+
+  @retval Number of bytes parsed.
 **/
-VOID
+UINT32
 EFIAPI
 DumpGasStruct (
   IN UINT8*        Ptr,
-  IN UINT32        Indent
+  IN UINT32        Indent,
+  IN UINT32        Length
   );
 
 /**

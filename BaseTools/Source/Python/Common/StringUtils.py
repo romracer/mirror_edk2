@@ -2,13 +2,7 @@
 # This file is used to define common string related functions used in parsing process
 #
 # Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ##
@@ -249,8 +243,10 @@ def SplitModuleType(Key):
 #
 # @retval NewList           A new string list whose macros are replaced
 #
-def ReplaceMacros(StringList, MacroDefinitions={}, SelfReplacement=False):
+def ReplaceMacros(StringList, MacroDefinitions=None, SelfReplacement=False):
     NewList = []
+    if MacroDefinitions is None:
+        MacroDefinitions = {}
     for String in StringList:
         if isinstance(String, type('')):
             NewList.append(ReplaceMacro(String, MacroDefinitions, SelfReplacement))
@@ -270,8 +266,10 @@ def ReplaceMacros(StringList, MacroDefinitions={}, SelfReplacement=False):
 #
 # @retval string            The string whose macros are replaced
 #
-def ReplaceMacro(String, MacroDefinitions={}, SelfReplacement=False, RaiseError=False):
+def ReplaceMacro(String, MacroDefinitions=None, SelfReplacement=False, RaiseError=False):
     LastString = String
+    if MacroDefinitions is None:
+        MacroDefinitions = {}
     while String and MacroDefinitions:
         MacroUsed = GlobalData.gMacroRefPattern.findall(String)
         # no macro found in String, stop replacing
@@ -304,7 +302,7 @@ def ReplaceMacro(String, MacroDefinitions={}, SelfReplacement=False, RaiseError=
 #
 # @retval Path Formatted path
 #
-def NormPath(Path, Defines={}):
+def NormPath(Path, Defines=None):
     IsRelativePath = False
     if Path:
         if Path[0] == '.':

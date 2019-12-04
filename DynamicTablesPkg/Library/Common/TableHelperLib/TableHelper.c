@@ -2,13 +2,7 @@
   Table Helper
 
 Copyright (c) 2017 - 2019, ARM Limited. All rights reserved.
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #include <Protocol/AcpiTable.h>
@@ -19,6 +13,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 // Module specific include files.
 #include <AcpiTableGenerator.h>
 #include <ConfigurationManagerObject.h>
+#include <Library/TableHelperLib.h>
 #include <Protocol/ConfigurationManagerProtocol.h>
 
 /** The GetCgfMgrInfo function gets the CM_STD_OBJ_CONFIGURATION_MANAGER_INFO
@@ -100,7 +95,7 @@ GetCgfMgrInfo (
   @param [in]     Generator      Pointer to the ACPI table Generator.
   @param [in,out] AcpiHeader     Pointer to the ACPI table header to be
                                  updated.
-  @param [in]     Revision       Revision of the ACPI table.
+  @param [in]     AcpiTableInfo  Pointer to the ACPI table info structure.
   @param [in]     Length         Length of the ACPI table.
 
   @retval EFI_SUCCESS           The ACPI table is updated successfully.
@@ -116,7 +111,7 @@ AddAcpiHeader (
   IN      CONST EDKII_CONFIGURATION_MANAGER_PROTOCOL  * CONST CfgMgrProtocol,
   IN      CONST ACPI_TABLE_GENERATOR                  * CONST Generator,
   IN OUT  EFI_ACPI_DESCRIPTION_HEADER                 * CONST AcpiHeader,
-  IN      CONST UINT32                                        Revision,
+  IN      CONST CM_STD_OBJ_ACPI_TABLE_INFO            * CONST AcpiTableInfo,
   IN      CONST UINT32                                        Length
   )
 {
@@ -151,7 +146,7 @@ AddAcpiHeader (
   // UINT32  Length
   AcpiHeader->Length = Length;
   // UINT8   Revision
-  AcpiHeader->Revision = Revision;
+  AcpiHeader->Revision = AcpiTableInfo->AcpiTableRevision;
   // UINT8   Checksum
   AcpiHeader->Checksum = 0;
 
@@ -159,12 +154,24 @@ AddAcpiHeader (
   CopyMem (AcpiHeader->OemId, CfgMfrInfo->OemId, sizeof (AcpiHeader->OemId));
 
   // UINT64  OemTableId
-  AcpiHeader->OemTableId = Generator->CreatorId;
-  AcpiHeader->OemTableId <<= 32;
-  AcpiHeader->OemTableId |= Generator->AcpiTableSignature;
+  if (AcpiTableInfo->OemTableId != 0) {
+    AcpiHeader->OemTableId = AcpiTableInfo->OemTableId;
+  } else {
+    AcpiHeader->OemTableId = SIGNATURE_32 (
+                               CfgMfrInfo->OemId[0],
+                               CfgMfrInfo->OemId[1],
+                               CfgMfrInfo->OemId[2],
+                               CfgMfrInfo->OemId[3]
+                               ) |
+                             ((UINT64)Generator->AcpiTableSignature << 32);
+  }
 
   // UINT32  OemRevision
-  AcpiHeader->OemRevision = CfgMfrInfo->Revision;
+  if (AcpiTableInfo->OemRevision != 0) {
+    AcpiHeader->OemRevision = AcpiTableInfo->OemRevision;
+  } else {
+    AcpiHeader->OemRevision = CfgMfrInfo->Revision;
+  }
 
   // UINT32  CreatorId
   AcpiHeader->CreatorId = Generator->CreatorId;
@@ -173,4 +180,67 @@ AddAcpiHeader (
 
 error_handler:
   return Status;
+}
+
+/**
+  Test and report if a duplicate entry exists in the given array of comparable
+  elements.
+
+  @param [in] Array                 Array of elements to test for duplicates.
+  @param [in] Count                 Number of elements in Array.
+  @param [in] ElementSize           Size of an element in bytes
+  @param [in] EqualTestFunction     The function to call to check if any two
+                                    elements are equal.
+
+  @retval TRUE                      A duplicate element was found or one of
+                                    the input arguments is invalid.
+  @retval FALSE                     Every element in Array is unique.
+**/
+BOOLEAN
+EFIAPI
+FindDuplicateValue (
+  IN  CONST VOID          * Array,
+  IN  CONST UINTN           Count,
+  IN  CONST UINTN           ElementSize,
+  IN        PFN_IS_EQUAL    EqualTestFunction
+  )
+{
+  UINTN         Index1;
+  UINTN         Index2;
+  UINT8       * Element1;
+  UINT8       * Element2;
+
+  if (Array == NULL) {
+    DEBUG ((DEBUG_ERROR, "ERROR: FindDuplicateValues: Array is NULL.\n"));
+    return TRUE;
+  }
+
+  if (ElementSize == 0) {
+    DEBUG ((DEBUG_ERROR, "ERROR: FindDuplicateValues: ElementSize is 0.\n"));
+    return TRUE;
+  }
+
+  if (EqualTestFunction == NULL) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "ERROR: FindDuplicateValues: EqualTestFunction is NULL.\n"
+      ));
+    return TRUE;
+  }
+
+  if (Count < 2) {
+    return FALSE;
+  }
+
+  for (Index1 = 0; Index1 < Count - 1; Index1++) {
+    for (Index2 = Index1 + 1; Index2 < Count; Index2++) {
+      Element1 = (UINT8*)Array + (Index1 * ElementSize);
+      Element2 = (UINT8*)Array + (Index2 * ElementSize);
+
+      if (EqualTestFunction (Element1, Element2, Index1, Index2)) {
+        return TRUE;
+      }
+    }
+  }
+  return FALSE;
 }

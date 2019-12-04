@@ -4,12 +4,7 @@ Filename: DistributionPackage.xsd
 
 Copyright (c) 2008 - 2012, Intel Corporation. All rights reserved.
 
-This program and the accompanying materials are licensed and made available 
-under the terms and conditions of the BSD License which may be found at 
-    http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified"
@@ -171,7 +166,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
               Package.
             </xs:documentation>
             <xs:documentation xml:lang="en-us">
-              Each Distribution Package is uniquely identified by it's
+              Each Distribution Package is uniquely identified by its
               GUID and Version number.
             </xs:documentation>
           </xs:annotation>
@@ -368,7 +363,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
         Modules.
       </xs:documentation>
       <xs:documentation xml:lang="en-us">
-        Each package is uniquely identified by it's GUID and Version number.
+        Each package is uniquely identified by its GUID and Version number.
         Backward compatible releases of a package need only change the version number, while non-backward
         compatible changes require the GUID to change (resetting the version number to 1.0 is optional.)
       </xs:documentation>
@@ -1173,7 +1168,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
   <xs:element name="ModuleSurfaceArea">
     <xs:annotation>
       <xs:documentation xml:lang="en-us">
-        Each module is uniquely identified by it's GUID and Version number.
+        Each module is uniquely identified by its GUID and Version number.
         Backward compatible releases of a module need only change the version number, while non-backward
         compatible changes require the GUID to change (resetting the version number to 1.0 is optional.)
       </xs:documentation>
@@ -3097,7 +3092,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
           <xs:documentation xml:lang="en-us">
             The Patch PCD is a #define that is set at build time, and that
             can be modified within a binary file. Additional information, such as the offset location of the
-            value, along with it's length may need to be provided.
+            value, along with its length may need to be provided.
           </xs:documentation>
         </xs:annotation>
       </xs:enumeration>

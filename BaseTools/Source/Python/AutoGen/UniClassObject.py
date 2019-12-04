@@ -5,13 +5,7 @@
 # Copyright (c) 2014 Hewlett-Packard Development Company, L.P.<BR>
 #
 # Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 
 ##
 # Import Modules
@@ -377,13 +371,12 @@ class UniFileClassObject(object):
     # Pre-process before parse .uni file
     #
     def PreProcess(self, File):
-        if not os.path.exists(File.Path) or not os.path.isfile(File.Path):
-            EdkLogger.error("Unicode File Parser", FILE_NOT_FOUND, ExtraData=File.Path)
-
         try:
             FileIn = UniFileClassObject.OpenUniFile(LongFilePath(File.Path))
         except UnicodeError as X:
             EdkLogger.error("build", FILE_READ_FAILURE, "File read failure: %s" % str(X), ExtraData=File.Path);
+        except OSError:
+            EdkLogger.error("Unicode File Parser", FILE_NOT_FOUND, ExtraData=File.Path)
         except:
             EdkLogger.error("build", FILE_OPEN_FAILURE, ExtraData=File.Path);
 

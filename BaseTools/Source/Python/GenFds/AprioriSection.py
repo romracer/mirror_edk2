@@ -3,13 +3,7 @@
 #
 #  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-#  This program and the accompanying materials
-#  are licensed and made available under the terms and conditions of the BSD License
-#  which accompanies this distribution.  The full text of the license may be found at
-#  http://opensource.org/licenses/bsd-license.php
-#
-#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
 ##
@@ -52,7 +46,9 @@ class AprioriSection (object):
     #   @param  Dict        dictionary contains macro and its value
     #   @retval string      Generated file name
     #
-    def GenFfs (self, FvName, Dict = {}, IsMakefile = False):
+    def GenFfs (self, FvName, Dict = None, IsMakefile = False):
+        if Dict is None:
+            Dict = {}
         Buffer = BytesIO()
         if self.AprioriType == "PEI":
             AprioriFileGuid = PEI_APRIORI_GUID

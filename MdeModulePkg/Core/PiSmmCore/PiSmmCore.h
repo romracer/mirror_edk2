@@ -2,14 +2,8 @@
   The internal header file includes the common header files, defines
   internal structure and functions used by SmmCore module.
 
-  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials are licensed and made available
-  under the terms and conditions of the BSD License which accompanies this
-  distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2009 - 2019, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -146,7 +140,7 @@ typedef struct {
   EFI_LOADED_IMAGE_PROTOCOL       SmmLoadedImage;
 } EFI_SMM_DRIVER_ENTRY;
 
-#define EFI_HANDLE_SIGNATURE            SIGNATURE_32('h','n','d','l')
+#define EFI_HANDLE_SIGNATURE            SIGNATURE_32('s','h','d','l')
 
 ///
 /// IHANDLE - contains a list of protocol handles
@@ -162,7 +156,7 @@ typedef struct {
 
 #define ASSERT_IS_HANDLE(a)  ASSERT((a)->Signature == EFI_HANDLE_SIGNATURE)
 
-#define PROTOCOL_ENTRY_SIGNATURE        SIGNATURE_32('p','r','t','e')
+#define PROTOCOL_ENTRY_SIGNATURE        SIGNATURE_32('s','p','t','e')
 
 ///
 /// PROTOCOL_ENTRY - each different protocol has 1 entry in the protocol
@@ -181,7 +175,7 @@ typedef struct {
   LIST_ENTRY          Notify;
 } PROTOCOL_ENTRY;
 
-#define PROTOCOL_INTERFACE_SIGNATURE  SIGNATURE_32('p','i','f','c')
+#define PROTOCOL_INTERFACE_SIGNATURE  SIGNATURE_32('s','p','i','f')
 
 ///
 /// PROTOCOL_INTERFACE - each protocol installed on a handle is tracked
@@ -201,7 +195,7 @@ typedef struct {
   VOID                        *Interface;
 } PROTOCOL_INTERFACE;
 
-#define PROTOCOL_NOTIFY_SIGNATURE       SIGNATURE_32('p','r','t','n')
+#define PROTOCOL_NOTIFY_SIGNATURE       SIGNATURE_32('s','p','t','n')
 
 ///
 /// PROTOCOL_NOTIFY - used for each register notification for a protocol
@@ -1251,7 +1245,7 @@ extern LIST_ENTRY  mSmmMemoryMap;
 //
 #define MAX_POOL_INDEX  (MAX_POOL_SHIFT - MIN_POOL_SHIFT + 1)
 
-#define POOL_HEAD_SIGNATURE   SIGNATURE_32('p','h','d','0')
+#define POOL_HEAD_SIGNATURE   SIGNATURE_32('s','p','h','d')
 
 typedef struct {
   UINT32            Signature;
@@ -1260,7 +1254,7 @@ typedef struct {
   UINTN             Size;
 } POOL_HEADER;
 
-#define POOL_TAIL_SIGNATURE   SIGNATURE_32('p','t','a','l')
+#define POOL_TAIL_SIGNATURE   SIGNATURE_32('s','p','t','l')
 
 typedef struct {
   UINT32            Signature;

@@ -1,14 +1,8 @@
 /** @file
   Implementation of loading microcode on processors.
 
-  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2015 - 2019, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -173,9 +167,15 @@ MicrocodeDetect (
     }
 
     ///
-    /// Check overflow and whether TotalSize is aligned with 4 bytes.
+    /// 0x0       MicrocodeBegin  MicrocodeEntry  MicrocodeEnd      0xffffffff
+    /// |--------------|---------------|---------------|---------------|
+    ///                                 valid TotalSize
+    /// TotalSize is only valid between 0 and (MicrocodeEnd - MicrocodeEntry).
+    /// And it should be aligned with 4 bytes.
+    /// If the TotalSize is invalid, skip 1KB to check next entry.
     ///
-    if ( ((UINTN)MicrocodeEntryPoint + TotalSize) > MicrocodeEnd ||
+    if ( (UINTN)MicrocodeEntryPoint > (MAX_ADDRESS - TotalSize) ||
+         ((UINTN)MicrocodeEntryPoint + TotalSize) > MicrocodeEnd ||
          (TotalSize & 0x3) != 0
        ) {
       MicrocodeEntryPoint = (CPU_MICROCODE_HEADER *) (((UINTN) MicrocodeEntryPoint) + SIZE_1KB);
